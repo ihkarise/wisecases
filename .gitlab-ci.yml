@@ -1,0 +1,15 @@
+# GitLab CI/CD configuration for GitLab Pages
+# Publishes the static WiseCases application without requiring external server builds
+
+image: alpine:latest
+
+pages:
+  stage: deploy
+  script:
+    - mkdir -p public
+    - cp -r index.html styles.css app.js config.js 404.html .nojekyll data assets public/
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WiseCases — Progressive Clinical Diagnosis | WiseAiTechs</title>
+  <meta name="description" content="Progressive clinical diagnosis and medical learning game by WiseAiTechs — For All Medicos. Think clinically, reveal the clues, and master the diagnosis.">
+  
+  <!-- Google Fonts: Poppins & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Application Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Favicon SVG (Data URI) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><circle cx='10' cy='20' r='6' fill='%23243E8F'/><circle cx='30' cy='12' r='6' fill='%23D61F4B'/><circle cx='30' cy='28' r='6' fill='%233B82F6'/><path d='M10 20 Q 20 12 30 12 M 10 20 Q 20 28 30 28' stroke='%23243E8F' stroke-width='3' fill='none'/></svg>">
+</head>
+<body>
+
+  <!-- =========================================================================
+       App Header & Global Navigation
+       ========================================================================= -->
+  <header class="app-header">
+    <div class="container header-inner">
+      <a href="#home" class="brand-identity" id="brand-link" aria-label="WiseCases by WiseAiTechs Home">
+        <!-- WiseAiTechs Neural Pillar Logo -->
+        <div class="brand-symbol">
+          <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" width="44" height="44" aria-hidden="true">
+            <rect x="4" y="10" width="8" height="24" rx="4" fill="#243E8F"/>
+            <rect x="18" y="4" width="8" height="36" rx="4" fill="#243E8F"/>
+            <rect x="32" y="14" width="8" height="20" rx="4" fill="#D61F4B"/>
+            <circle cx="22" cy="12" r="3" fill="#3B82F6"/>
+            <circle cx="36" cy="18" r="2.5" fill="#FFFFFF"/>
+            <path d="M8 14C14 14 18 8 22 8M22 28C28 28 32 20 36 20" stroke="#3B82F6" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-name-row">
+            <span class="brand-name">Wise<span>Ai</span>Techs</span>
+            <span class="brand-product-pill">WiseCases</span>
+          </div>
+          <span class="brand-tagline">For All Medicos • Progressive Clinical Diagnosis</span>
+        </div>
+      </a>
+
+      <!-- Mobile Hamburger Toggle -->
+      <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle navigation menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+
+      <!-- Desktop Navigation Menu -->
+      <nav aria-label="Primary Navigation">
+        <ul class="nav-menu" id="nav-menu">
+          <li><a href="#home" class="nav-link active" data-nav="home">Home</a></li>
+          <li><a href="#library" class="nav-link" data-nav="library">Case Library</a></li>
+          <li><a href="#results" class="nav-link" data-nav="results">My Results</a></li>
+          <li>
+            <a href="#admin" class="nav-link" data-nav="admin">
+              Case Manager
+              <span class="nav-admin-badge">Admin</span>
+            </a>
+          </li>
+          <li><a href="#import" class="nav-link" data-nav="import">Import Center</a></li>
+          <li><a href="#settings" class="nav-link" data-nav="settings">Settings</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       Main Application Views Container
+       ========================================================================= -->
+  <main id="app-main" role="main">
+
+    <!-- ---------------------------------------------------------------------
+         Screen 1: Home View
+         --------------------------------------------------------------------- -->
+    <section id="view-home" class="app-view view-active">
+      <div class="container">
+        
+        <!-- Hero Section -->
+        <div class="hero-section">
+          <div class="hero-pill-badge">
+            <span class="badge badge-blue">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              Next-Gen Medical Reasoning Simulation
+            </span>
+          </div>
+          <h1 class="hero-title">
+            Think Like a Clinician.<br>
+            <span class="brand-gradient">Reveal the Clues. Narrow the Diagnosis.</span>
+          </h1>
+          <h2 class="hero-subtitle">WiseCases — Progressive Clinical Diagnosis</h2>
+          <p class="hero-description">
+            Experience high-fidelity diagnostic challenges where real patient presentations unfold stage by stage.
+            Evaluate the chief complaint, withstand acute complications, decipher systemic clues, and arrive at the definitive diagnosis.
+          </p>
+
+          <div class="hero-actions">
+            <button class="btn btn-ai btn-lg" id="btn-hero-start">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              Start Cases
+            </button>
+            <button class="btn btn-secondary btn-lg" id="btn-hero-library">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              </svg>
+              Case Library
+            </button>
+            <button class="btn btn-secondary btn-lg" id="btn-hero-results">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+              </svg>
+              My Results
+            </button>
+          </div>
+        </div>
+
+        <!-- 3 Feature Highlights -->
+        <div class="features-grid">
+          <div class="card-ai-feature">
+            <div class="feature-card-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <h3 class="feature-card-title">Progressive Revelation</h3>
+            <p class="feature-card-text">
+              Cases start deliberately tough. Each diagnostic attempt unlocks sharper clinical findings, vitals, lab derangements, and imaging.
+            </p>
+          </div>
+
+          <div class="card-ai-feature">
+            <div class="feature-card-icon red">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+            </div>
+            <h3 class="feature-card-title">Dynamic Life & Scoring</h3>
+            <p class="feature-card-text">
+              Maintain your clinical diagnostic lives. Solve earlier stages to earn maximum scoring bonuses while preserving patient stability.
+            </p>
+          </div>
+
+          <div class="card-ai-feature">
+            <div class="feature-card-icon green">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+              </svg>
+            </div>
+            <h3 class="feature-card-title">Deep Clinical Rationale</h3>
+            <p class="feature-card-text">
+              Comprehensive post-case debriefs detailing pathophysiology, missed clues, accepted differentials, and guideline references.
+            </p>
+          </div>
+        </div>
+
+        <!-- 4-Step Clinical Flow Banner -->
+        <div class="card-dark-system how-it-works-banner">
+          <span class="badge badge-cyan">The WiseCases Architecture</span>
+          <h2 style="font-size: 28px; font-weight: 800; margin-top: 12px;">How Progressive Clinical Deduction Works</h2>
+          <div class="banner-grid">
+            <div>
+              <div class="banner-step-num">STAGE 01</div>
+              <div class="banner-step-title">The Chief Complaint</div>
+              <div class="banner-step-desc">Vague initial symptoms, history challenges, and initial triage distress.</div>
+            </div>
+            <div>
+              <div class="banner-step-num">STAGE 02</div>
+              <div class="banner-step-title">Acute Presentation</div>
+              <div class="banner-step-desc">Objective physical examination findings and urgent inpatient signs.</div>
+            </div>
+            <div>
+              <div class="banner-step-num">STAGE 03</div>
+              <div class="banner-step-title">The Ward Crisis</div>
+              <div class="banner-step-desc">Systemic deterioration, acute lab anomalies, and critical shifts.</div>
+            </div>
+            <div>
+              <div class="banner-step-num">STAGE 04 & 05</div>
+              <div class="banner-step-title">Definitive Etiology</div>
+              <div class="banner-step-desc">Organ system failure patterns and underlying etiology revealed.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------------
+         Screen 2: Case Library View
+         --------------------------------------------------------------------- -->
+    <section id="view-library" class="app-view">
+      <div class="container">
+        <div class="view-header">
+          <div class="view-title-row">
+            <h1 class="view-title">Clinical Case Library</h1>
+            <span class="badge badge-blue" id="library-case-count">Loading Cases...</span>
+          </div>
+          <p class="view-subtitle">Select a patient scenario to begin progressive diagnostic deduction.</p>
+        </div>
+
+        <!-- Search & Filter Toolbar -->
+        <div class="library-toolbar">
+          <div class="search-input-wrapper">
+            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="library-search-input" class="search-input" placeholder="Search by case title, condition, category, or ID (e.g. Liver, STEMI, Surgery)...">
+          </div>
+
+          <div class="category-filter-chips" id="category-filter-chips" role="tablist" aria-label="Filter cases by specialty">
+            <!-- Dynamically populated chips -->
+          </div>
+        </div>
+
+        <!-- Cases Grid -->
+        <div class="case-cards-grid" id="case-cards-grid">
+          <!-- Dynamically populated case cards -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------------
+         Screen 3: Main Game Screen (Clinical Reasoning Interface)
+         --------------------------------------------------------------------- -->
+    <section id="view-game" class="app-view">
+      <div class="container container-fluid">
+        
+        <!-- Top Utility Bar -->
+        <div class="game-top-bar">
+          <button class="game-back-btn" id="btn-game-back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Exit to Case Library
+          </button>
+
+          <div id="game-preview-banner" class="preview-mode-banner" style="display: none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            ADMIN PREVIEW MODE — Stats will not be saved
+          </div>
+        </div>
+
+        <!-- Two-Column Clinical Reasoning Layout -->
+        <div class="game-layout">
+          
+          <!-- LEFT COLUMN: Patient Presentation & Progressive Clues -->
+          <div class="case-presentation-col">
+            
+            <!-- Case Demographic Card -->
+            <div class="card-standard case-overview-card">
+              <div class="case-overview-header">
+                <span class="case-category-tag" id="game-case-category">Medicine / Gastroenterology</span>
+                <span class="badge badge-blue" id="game-case-id">CASE-001</span>
+              </div>
+              <h1 class="case-main-title" id="game-case-title">Decompensated Alcoholic Liver Disease</h1>
+              
+              <div class="patient-demographics-grid">
+                <div class="demo-item">
+                  <span class="demo-label">Patient Age</span>
+                  <span class="demo-val" id="game-patient-age">48 Years</span>
+                </div>
+                <div class="demo-item">
+                  <span class="demo-label">Biological Sex</span>
+                  <span class="demo-val" id="game-patient-sex">Male</span>
+                </div>
+                <div class="demo-item" style="grid-column: span 2;">
+                  <span class="demo-label">Initial Presentation Note</span>
+                  <span class="demo-val" id="game-patient-summary">Recurrent lower limb distress with compliance barriers.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Progressive Stages Stepper -->
+            <div class="card-standard stages-stepper-card">
+              <div class="stepper-header">
+                <span class="stepper-title">Diagnostic Revelation Track</span>
+                <span class="stepper-counter" id="game-stage-counter">Stage 1 of 5</span>
+              </div>
+              <div class="stepper-track" id="game-stepper-track">
+                <!-- Dynamically rendered step nodes -->
+              </div>
+            </div>
+
+            <!-- Clues Stream (Revealed cards + Locked indicator) -->
+            <div class="clues-stream" id="game-clues-stream">
+              <!-- Clue cards injected dynamically -->
+            </div>
+
+          </div>
+
+          <!-- RIGHT COLUMN: Sticky Diagnostic Console -->
+          <div class="diagnostic-panel-col">
+            <div class="card-standard console-card">
+              
+              <!-- Vitals: Lives, Stage, Score -->
+              <div class="vitals-row">
+                <div class="vital-metric-card">
+                  <div class="vital-label">
+                    <span>Clinical Lives</span>
+                    <span id="game-lives-text" style="color: var(--color-wise-red); font-weight: 800;">5 / 5</span>
+                  </div>
+                  <div class="lives-container" id="game-lives-container" aria-label="Remaining Diagnostic Lives">
+                    <!-- SVG Hearts populated dynamically -->
+                  </div>
+                </div>
+
+                <div class="vital-metric-card">
+                  <div class="vital-label">
+                    <span>Case Score</span>
+                    <span class="score-pill" id="game-score-display">1000</span>
+                  </div>
+                  <div class="vital-value" style="font-size: 15px; font-weight: 600; color: var(--color-slate-gray); margin-top: 4px;">
+                    Stage Clue Penalty: <span style="color: var(--color-wise-red);">-100</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Diagnosis Submission Form -->
+              <div class="diagnosis-input-section">
+                <div class="input-section-header">
+                  <h3 class="input-section-title">Formulate Your Diagnosis</h3>
+                  <p class="input-section-hint">Enter the definitive clinical condition based on accumulated findings.</p>
+                </div>
+
+                <form id="game-diagnosis-form" class="diagnosis-form" autocomplete="off">
+                  <div class="autocomplete-wrapper">
+                    <input 
+                      type="text" 
+                      id="game-diagnosis-input" 
+                      class="diagnosis-input" 
+                      placeholder="Type clinical diagnosis, condition name, or acronym (e.g. AIH, STEMI)..."
+                      aria-label="Enter your clinical diagnosis"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-expanded="false"
+                      aria-controls="diagnosis-autocomplete-list"
+                      required
+                    >
+                    <div id="diagnosis-autocomplete-list" class="autocomplete-dropdown" role="listbox">
+                      <!-- Dynamically rendered autocomplete suggestions -->
+                    </div>
+                  </div>
+                  <div class="diagnosis-action-area" id="diagnosis-action-area">
+                    <button type="submit" class="btn btn-ai" id="btn-submit-diagnosis">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                      Submit Diagnosis
+                    </button>
+                    <button type="button" class="btn btn-ai" id="btn-show-answer" style="display: none;">
+                      Show the Answer
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btn-continue-stage" style="display: none;">
+                      Continue to Next Stage
+                    </button>
+                    <button type="button" class="btn btn-success" id="btn-show-complete-answer" style="display: none;">
+                      Show Complete Answer
+                    </button>
+                  </div>
+                </form>
+
+                <!-- Feedback Alert Banner -->
+                <div id="game-feedback-banner" class="feedback-banner" role="alert" aria-live="assertive">
+                  <div class="feedback-title-row">
+                    <span id="feedback-icon">✕</span>
+                    <span id="feedback-title">INCORRECT</span>
+                  </div>
+                  
+                  <!-- Submitted Answer & Normalized Condition -->
+                  <div id="feedback-user-answer" style="font-size: 14px; font-weight: 700; color: var(--color-deep-navy); margin: 6px 0 2px;"></div>
+                  <div id="feedback-matched-condition" style="font-size: 13px; font-weight: 600; color: var(--color-slate-gray); margin-bottom: 6px; display: none;"></div>
+
+                  <p class="feedback-message" id="feedback-message">
+                    That diagnosis does not match the expected condition at this stage.
+                  </p>
+
+                  <!-- Educational Debrief on Wrong Answer -->
+                  <div class="feedback-reasoning-wrap" id="feedback-reasoning-wrap" style="display: none;">
+                    <div class="feedback-reasoning-title" id="feedback-why-wrong-title" style="font-size: 13px; font-weight: 700; color: var(--color-deep-navy); margin-bottom: 4px;">Why this is not the best answer:</div>
+                    <div class="feedback-reasoning-text" id="feedback-reasoning-text" style="font-size: 14px; line-height: 1.5; color: var(--color-deep-navy);"></div>
+
+                    <!-- What did you miss? -->
+                    <div class="feedback-missed-wrap" id="feedback-missed-wrap" style="display: none; margin-top: 10px;">
+                      <div class="feedback-missed-title" style="font-size: 13px; font-weight: 700; color: var(--color-deep-navy); margin-bottom: 4px;">WHAT DID YOU MISS?</div>
+                      <ul class="feedback-missed-list" id="feedback-missed-list" style="margin: 0; padding-left: 20px; font-size: 13px; color: var(--color-deep-navy); line-height: 1.5;"></ul>
+                    </div>
+
+                    <!-- Next Decision -->
+                    <div class="feedback-direction-wrap" id="feedback-direction-wrap" style="display: none; margin-top: 10px;">
+                      <div class="feedback-direction-title" style="font-size: 13px; font-weight: 700; color: var(--color-deep-navy); margin-bottom: 4px;">NEXT DECISION</div>
+                      <div class="feedback-direction-text" id="feedback-direction-text" style="font-size: 13px; color: var(--color-deep-navy); line-height: 1.5;"></div>
+                    </div>
+                  </div>
+
+                  <!-- Correct Answer Decisive Findings -->
+                  <div class="feedback-correct-wrap" id="feedback-correct-wrap" style="display: none; margin-top: 10px;">
+                    <div style="font-size: 13px; font-weight: 700; color: var(--color-deep-navy); margin-bottom: 4px;">WHY THIS IS CORRECT</div>
+                    <div id="feedback-correct-why" style="font-size: 14px; line-height: 1.5; color: var(--color-deep-navy); margin-bottom: 8px;"></div>
+                    <div id="feedback-decisive-wrap" style="display: none;">
+                      <div style="font-size: 13px; font-weight: 700; color: var(--color-deep-navy); margin-bottom: 4px;">DECISIVE FINDINGS</div>
+                      <ul id="feedback-decisive-list" style="margin: 0; padding-left: 20px; font-size: 13px; color: var(--color-deep-navy); line-height: 1.5;"></ul>
+                    </div>
+                  </div>
+
+                  <div class="feedback-meta" id="feedback-meta" style="margin-top: 10px;">
+                    Life lost: -1 • Lives remaining: 4 • A new clinical clue has been revealed.
+                  </div>
+                  <div style="margin-top: 14px;" id="feedback-action-container">
+                    <!-- Button to view explanation appears if correct or out of lives -->
+                  </div>
+                </div>
+
+                <!-- Session Attempts Mini Log -->
+                <div class="attempts-mini-log">
+                  <div class="attempts-log-title">Differential Attempts History</div>
+                  <div class="attempts-log-list" id="game-attempts-list">
+                    <div style="font-size: 13px; color: var(--color-slate-gray-light); font-style: italic; padding: 4px;">
+                      No diagnosis submitted yet. Review Stage 1 clue carefully.
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------------
+         Screen 4: Complete Clinical Answer & Debrief Screen
+         --------------------------------------------------------------------- -->
+    <section id="view-result" class="app-view">
+      <div class="container container-narrow">
+        
+        <!-- Result Header Card -->
+        <div class="card-standard result-header-card">
+          <div class="result-badge-wrap">
+            <span class="badge badge-green" id="result-status-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              ✓ CORRECT
+            </span>
+          </div>
+          <h1 class="result-main-title" id="result-page-title">COMPLETE CLINICAL ANSWER</h1>
+          <div class="result-case-title-sub" id="result-case-title" style="font-size: 18px; font-weight: 700; color: var(--color-deep-navy); margin-top: 4px;">Decompensated Alcoholic Liver Disease</div>
+          
+          <div class="result-diagnosis-box">
+            <div class="result-diagnosis-label" id="result-diagnosis-label">FINAL DIAGNOSIS</div>
+            <div class="result-diagnosis-text" id="result-correct-diagnosis">
+              Decompensated Alcoholic Liver Disease
+            </div>
+            <div id="result-diagnosis-display-name" style="font-size: 15px; font-weight: 600; color: var(--color-slate-gray); margin-top: 6px; display: none;"></div>
+            
+            <div id="result-diagnosis-detailed-explanation" style="font-size: 15px; line-height: 1.6; color: var(--color-deep-navy); margin-top: 14px; padding: 14px; background: #F8FAFC; border-radius: var(--radius-md); border-left: 4px solid var(--color-wise-blue); text-align: left; display: none;">
+              <strong style="color: var(--color-wise-blue); display: block; margin-bottom: 4px;">Why this is the diagnosis:</strong>
+              <div id="result-diagnosis-detailed-text"></div>
+            </div>
+            <div id="result-diagnosis-cross-refs" style="margin-top: 10px; text-align: left; display: none;"></div>
+          </div>
+          <div style="margin-top: 14px;">
+            <span class="badge badge-blue" id="result-stage-identified-pill" style="font-size: 14px; padding: 6px 18px; text-transform: none;">
+              You identified the diagnosis at Stage 1 of 5
+            </span>
+          </div>
+        </div>
+
+        <!-- Performance Metrics Grid -->
+        <div class="result-metrics-grid">
+          <div class="metric-card">
+            <div class="metric-val score" id="result-metric-score">820</div>
+            <div class="metric-title">Score</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="result-metric-lives">3 / 5</div>
+            <div class="metric-title">Lives Used</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="result-metric-stage">4 / 5</div>
+            <div class="metric-title">Stages Required</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="result-metric-attempts">4</div>
+            <div class="metric-title">Attempts</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="result-metric-accuracy">25%</div>
+            <div class="metric-title">Diagnostic Accuracy</div>
+          </div>
+        </div>
+
+        <!-- Your Diagnostic Journey -->
+        <div class="card-standard result-section-card">
+          <h2 class="result-section-title">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-wise-blue);">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+            Your Diagnostic Journey
+          </h2>
+          <div class="journey-timeline" id="result-journey-timeline">
+            <!-- Injected dynamically -->
+          </div>
+        </div>
+
+        <!-- Complete Clinical Case Debrief Container -->
+        <div class="debrief-longform-container">
+
+          <!-- 1. Case Presentation -->
+          <div class="card-standard result-section-card" id="debrief-presentation-card">
+            <div class="debrief-section-header">
+              <span class="debrief-section-num">1</span>
+              <h2 class="result-section-title" style="margin: 0;">Case Presentation</h2>
+            </div>
+            <div id="debrief-patient-profile" style="font-size: 15px; line-height: 1.6; color: var(--color-deep-navy);">
+              <!-- Injected dynamically -->
+            </div>
+          </div>
+
+          <!-- Clinical Summary Card -->
+          <div class="card-standard result-section-card" id="debrief-clinical-summary-card">
+            <div class="debrief-section-header">
+              <span class="debrief-section-num">Overview</span>
+              <h2 class="result-section-title" style="margin: 0;">Clinical Summary</h2>
+            </div>
+            <p id="result-clinical-summary" style="font-size: 16px; line-height: 1.65; color: var(--color-deep-navy); margin: 0;">
+              <!-- Injected from JSON -->
+            </p>
+          </div>
+
+          <!-- 2. Stage-by-Stage Journey (Show EVERY Stage) -->
+          <div class="card-standard result-section-card">
+            <div class="debrief-section-header">
+              <span class="debrief-section-num">2</span>
+              <h2 class="result-section-title" style="margin: 0;">Stage-by-Stage Clinical Journey</h2>
+            </div>
+            <p style="font-size: 14px; color: var(--color-slate-gray); margin-bottom: 14px;">
+              Comprehensive review of all clinical clues and findings revealed across the entire diagnostic sequence.
+            </p>
+            <div class="journey-timeline" id="result-all-stages-timeline">
+              <!-- All stages injected dynamically -->
+            </div>
+          </div>
+
+          <!-- 3. Clinical Decision Points (What Should You Think Here?) -->
+          <div class="card-standard result-section-card" id="debrief-decision-points-card">
+            <div class="debrief-section-header">
+              <span class="debrief-section-num">3</span>
+              <h2 class="result-section-title" style="margin: 0;">Clinical Decision Points</h2>
+            </div>
+            <div id="result-decision-points-list">
+              <!-- Injected dynamically -->
+            </div>
+          </div>
+
+          <!-- 4. Diagnostic Reasoning Chain -->
+          <div class="card-standard result-section-card" id="debrief-reasoning-chain-card" style="display: none;">
+            <div class="debrief-section-header">
+              <span class="debrief-section-num">4</span>
+              <h2 class="result-section-title" style="margin: 0;">Diagnostic Reasoning Chain</h2>
+            </div>
+            <p style="font-size: 14px; color: var(--color-slate-gray); margin-bottom: 14px;">
+              Step-by-step clinical logic: Finding → Clinical Meaning → Diagnostic Decision → Final Diagnosis.
+            </p>
+            <div id="result-reasoning-chain-container" class="reasoning-chain-container">
+              <!-- Step cards injected dynamically -->
+            </div>
+          </div>
+
+          <!-- 5. Investigations & Interpretation -->
+          <div class="card-standard result-section-card" id="debrief-investigations-card">
+            <div class="debrief-section-header">
+              <span class="debrief-section-num">5</span>
+              <h2 class="result-section-title" style="margin: 0;">Investigations & Interpretation</h2>
+            </div>
+            <div id="result-investigations-container">
+              <!-- Structured investigations table injected dynamically -->
+            </div>
+            <div id="result-investigation-summary-wrap" style="margin-top: 14px; display: none;">
+              <h4 style="font-size: 14px; font-weight: 700; color: var(--color-slate-gray); text-transform: uppercase; margin-bottom: 4px;">What This Means:</h4>
+              <p id="result-investigation-summary" style="font-size: 15px; line-height: 1.6; color: var(--color-deep-navy);"></p>
+            </div>
+          </div>
+
+          <!-- 6. Clinical Insight Card -->
+          <div class="card-standard result-section-card clinical-insight-card" id="debrief-clinical-insight-card" style="display: none;">
+            <div class="debrief-section-header">
+              <span class="debrief-section-num">Insight</span>
+              <h2 class="result-section-title" style="margin: 0;" id="debrief-clinical-insight-title">Clinical Insight</h2>
+            </div>
+            <div id="debrief-clinical-insight-content" style="font-size: 15px; line-height: 1.65; color: var(--color-deep-navy);">
+              <!-- Injected dynamically -->
+            </div>
+          </div>
+
+          <!-- 7. Differential Diagnoses -->
+          <div class="card-standard result-section-card" id="debrief-differentials-card">
+            <div class="debrief-section-header">
+              <span class="debrief-section-num">7</span>
+              <h2 class="result-section-title" style="margin: 0;">Differential Diagnoses Evaluated</h2>
+            </div>
+            <div id="result-differentials-container">
+              <!-- Differentials cards injected dynamically -->
+            </div>
+          </div>
+
+          <!-- 8. Decisive Findings -->
+          <div class="card-standard result-section-card" id="debrief-decisive-findings-card" style="display: none;">
+            <div class="debrief-section-header">
+              <span class="debrief-section-num">8</span>
+              <h2 class="result-section-title" style="margin: 0;">Decisive Findings Confirming Diagnosis</h2>
+            </div>
+            <ul id="result-decisive-findings-list" style="padding-left: 20px; font-size: 15px; line-height: 1.6; color: var(--color-deep-navy);">
+              <!-- Decisive findings injected dynamically -->
+            </ul>
+          </div>
+
+          <!-- 9. Where Reasoning Could Go Wrong -->
+          <div class="card-standard result-section-card" id="debrief-pitfalls-card">
+            <div class="debrief-section-header">
+              <span class="debrief-section-num">9</span>
+              <h2 class="result-section-title" style="margin: 0;">Where The Reasoning Could Go Wrong</h2>
+            </div>
+            <ul id="result-pitfalls-list" style="padding-left: 20px; font-size: 15px; line-height: 1.6; color: var(--color-deep-navy);">
+              <!-- Traps / mistakes injected dynamically -->
+            </ul>
+          </div>
+
+          <!-- 10. Pathophysiologic Reasoning -->
+          <div class="card-standard result-section-card" id="debrief-pathophysiology-card">
+            <div class="debrief-section-header">
+              <span class="debrief-section-num">10</span>
+              <h2 class="result-section-title" style="margin: 0;">
+                <span id="result-explanation-heading-text">Why The Diagnosis Was Made</span>
+              </h2>
+            </div>
+            <div>
+              <p id="result-clinical-reasoning" style="font-size: 15px; line-height: 1.65; color: var(--color-slate-gray); margin: 0;">
+                <!-- Injected from JSON -->
+              </p>
+            </div>
+          </div>
+
+          <!-- 11. Key Learning Points -->
+          <div class="card-standard result-section-card" id="debrief-learning-card">
+            <div class="debrief-section-header">
+              <span class="debrief-section-num">11</span>
+              <h2 class="result-section-title" style="margin: 0;">
+                <span id="result-learning-heading-text">Key Learning Points & Takeaways</span>
+              </h2>
+            </div>
+            <ul class="learning-points-list" id="result-learning-points">
+              <!-- Bullet points injected from JSON -->
+            </ul>
+          </div>
+
+          <!-- 12. References -->
+          <div class="card-standard result-section-card" id="debrief-references-card">
+            <h2 class="result-section-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-slate-gray);">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+              Clinical References & Practice Guidelines
+            </h2>
+            <ul class="references-list" id="result-references-list">
+              <!-- Links injected from JSON -->
+            </ul>
+          </div>
+
+        </div>
+
+        <!-- Action Buttons Bar -->
+        <div class="result-actions-bar">
+          <button class="btn btn-ai" id="btn-result-next-case">
+            Play Next Case
+          </button>
+          <button class="btn btn-secondary" id="btn-result-try-again">
+            Try Again
+          </button>
+          <button class="btn btn-secondary" id="btn-result-library">
+            Back to Case Library
+          </button>
+          <button class="btn btn-secondary" id="btn-result-my-results">
+            My Results
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------------
+         Screen 5: User Result History ("My Results")
+         --------------------------------------------------------------------- -->
+    <section id="view-results" class="app-view">
+      <div class="container">
+        
+        <div class="view-header">
+          <div class="view-title-row">
+            <div>
+              <h1 class="view-title">My Diagnostic Results & Analytics</h1>
+              <span class="badge badge-blue" id="player-id-badge" style="font-size: 13px; font-weight: 500; margin-top: 6px; display: inline-block;">Player ID: Loading...</span>
+            </div>
+            <button class="btn btn-outline-danger btn-sm" id="btn-clear-history">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              Clear History
+            </button>
+          </div>
+          <p class="view-subtitle">Track your clinical deduction accuracy and case history across all completed sessions.</p>
+        </div>
+
+        <!-- Aggregate Statistics Grid -->
+        <div class="stats-summary-grid">
+          <div class="stat-box">
+            <div class="stat-box-val" id="stats-cases-played">0</div>
+            <div class="stat-box-label">Cases Played</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-val green" id="stats-cases-completed">0</div>
+            <div class="stat-box-label">Cases Completed</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-val green" id="stats-correct-diagnoses">0</div>
+            <div class="stat-box-label">Correct Diagnoses</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-val red" id="stats-failed-cases">0</div>
+            <div class="stat-box-label">Depleted Cases</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-val" id="stats-average-score">0</div>
+            <div class="stat-box-label">Average Score</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-val" id="stats-accuracy-rate">0%</div>
+            <div class="stat-box-label">Diagnostic Accuracy</div>
+          </div>
+        </div>
+
+        <!-- Case History List -->
+        <h2 style="font-size: 20px; font-weight: 800; margin-bottom: var(--space-md); color: var(--color-deep-navy);">Session Log</h2>
+        <div class="history-cards-list" id="history-cards-list">
+          <!-- Populated from localStorage -->
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------------
+         Screen 6: Case Manager / Admin Studio
+         --------------------------------------------------------------------- -->
+    <section id="view-admin" class="app-view">
+      <div class="container">
+        
+        <div class="view-header">
+          <div class="view-title-row">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <h1 class="view-title">Case Manager Studio</h1>
+              <span class="badge badge-red">Curriculum Admin</span>
+            </div>
+            <span class="badge badge-blue" id="admin-cases-count">0 Cases Configured</span>
+          </div>
+          <p class="view-subtitle">Author, edit, preview, duplicate, import, and export clinical cases.</p>
+        </div>
+
+        <!-- Admin Toolbar Actions -->
+        <div class="admin-toolbar-row">
+          <div class="search-input-wrapper" style="max-width: 380px;">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="admin-search-input" class="search-input" placeholder="Filter admin cases...">
+          </div>
+
+          <div class="admin-action-btns">
+            <button class="btn btn-primary" id="btn-admin-new-case">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              + New Case
+            </button>
+            <button class="btn btn-secondary" id="btn-admin-import-center" title="Open comprehensive Excel, CSV, and JSON Import Center">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              Import Center
+            </button>
+            <button class="btn btn-secondary" id="btn-admin-import-json">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              Quick JSON
+            </button>
+            <button class="btn btn-secondary" id="btn-admin-export-all">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Export JSON
+            </button>
+            <button class="btn btn-secondary" id="btn-admin-backup-all" title="Backup all cases and player results">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+              Backup All
+            </button>
+            <button class="btn btn-secondary" id="btn-admin-download-template" title="Download official JSON template for authors">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="12" y1="18" x2="12" y2="12"></line>
+                <line x1="9" y1="15" x2="15" y2="15"></line>
+              </svg>
+              Download Template
+            </button>
+            <button class="btn btn-secondary" id="btn-admin-case-inventory" title="Excel-compatible spreadsheet case inventory format">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="3" y1="15" x2="21" y2="15"></line>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+                <line x1="15" y1="3" x2="15" y2="21"></line>
+              </svg>
+              Case Inventory
+            </button>
+            <button class="btn btn-outline-danger btn-sm" id="btn-admin-reset-demo">
+              Reset Demo Data
+            </button>
+          </div>
+        </div>
+
+        <!-- Cases Table -->
+        <div class="admin-cases-table-wrap">
+          <table class="admin-cases-table">
+            <thead>
+              <tr>
+                <th>Case ID</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Stages</th>
+                <th>Lives</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-cases-tbody">
+              <!-- Admin case rows injected dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------------
+         Screen 7: Import Center View (Excel, CSV, JSON bulk ingestion)
+         --------------------------------------------------------------------- -->
+    <section id="view-import" class="app-view">
+      <div class="container">
+        
+        <div class="admin-header-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+            <div>
+              <span class="badge badge-blue">Content Ingestion Engine</span>
+              <h1 class="view-main-title" style="margin-top: 8px;">Import Center</h1>
+              <p class="view-subtitle">
+                Ingest medical cases in bulk from Excel (.xlsx), CSV spreadsheets, or JSON files.
+                All records are validated against WiseCases Schema 2.0 prior to curriculum commitment.
+              </p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary" id="btn-import-download-sample-csv">
+                Download Demo CSV
+              </button>
+              <button class="btn btn-secondary" id="btn-import-back-admin">
+                Back to Case Manager
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Format Selector & Dropzone -->
+        <div class="settings-section-card">
+          <h2 style="font-size: 18px; font-weight: 700; color: var(--color-deep-navy); margin-bottom: 12px;">
+            1. Select Import Format & Upload File
+          </h2>
+          
+          <div class="settings-radio-group" style="margin-bottom: 20px;">
+            <div class="settings-radio-card active" id="import-type-csv" onclick="window.WISECASES?.setImportType?.('csv')">
+              <div style="font-weight: 700; color: var(--color-wise-blue); margin-bottom: 4px;">CSV Spreadsheet</div>
+              <div style="font-size: 13px; color: var(--color-slate-gray);">Multi-stage columns (stage1_title, stage1_clue...). Best for doctors and bulk spreadsheets.</div>
+            </div>
+            <div class="settings-radio-card" id="import-type-excel" onclick="window.WISECASES?.setImportType?.('excel')">
+              <div style="font-weight: 700; color: var(--color-wise-blue); margin-bottom: 4px;">Excel Workbook (.xlsx)</div>
+              <div style="font-size: 13px; color: var(--color-slate-gray);">Microsoft Excel workbook with single-sheet or multi-tab curriculum structure.</div>
+            </div>
+            <div class="settings-radio-card" id="import-type-json" onclick="window.WISECASES?.setImportType?.('json')">
+              <div style="font-weight: 700; color: var(--color-wise-blue); margin-bottom: 4px;">JSON Curriculum Bundle</div>
+              <div style="font-size: 13px; color: var(--color-slate-gray);">Native WiseCases Schema 2.0 object or array. Supports full differential reasoning.</div>
+            </div>
+          </div>
+
+          <!-- Drag & Drop Zone -->
+          <div class="import-dropzone" id="import-dropzone">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 12px; color: var(--color-wise-blue);">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <div style="font-size: 16px; font-weight: 700; color: var(--color-deep-navy);">
+              Drag and drop your case file here, or click to browse
+            </div>
+            <div style="font-size: 13px; color: var(--color-slate-gray); margin-top: 6px;">
+              Supports .csv, .xlsx, and .json files
+            </div>
+            <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls,.json" style="display: none;">
+          </div>
+
+          <!-- Alternative Text Paste -->
+          <details style="margin-top: 16px;">
+            <summary style="font-size: 13px; font-weight: 600; color: var(--color-slate-gray); cursor: pointer;">
+              Or paste raw CSV or JSON text directly
+            </summary>
+            <div style="margin-top: 10px;">
+              <textarea id="import-paste-textarea" class="form-textarea" rows="6" placeholder="Paste raw CSV or JSON data here..."></textarea>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-parse-pasted-data" style="margin-top: 8px;">
+                Parse Pasted Content
+              </button>
+            </div>
+          </details>
+        </div>
+
+        <!-- Column Mapping Panel (For CSV / Excel) -->
+        <div class="settings-section-card" id="import-mapping-panel" style="display: none;">
+          <h2 style="font-size: 18px; font-weight: 700; color: var(--color-deep-navy); margin-bottom: 6px;">
+            2. Column Field Mapping
+          </h2>
+          <p style="font-size: 13px; color: var(--color-slate-gray); margin-bottom: 14px;">
+            Verify or adjust the mapping from your spreadsheet headers to Schema 2.0 fields.
+          </p>
+          <div style="overflow-x: auto;">
+            <table class="import-mapping-table" id="import-mapping-table">
+              <thead>
+                <tr>
+                  <th>Spreadsheet Column Header</th>
+                  <th>Sample Value (Row 1)</th>
+                  <th>Maps to WiseCases Field</th>
+                </tr>
+              </thead>
+              <tbody id="import-mapping-tbody">
+                <!-- Dynamically generated rows -->
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top: 14px; text-align: right;">
+            <button class="btn btn-primary" id="btn-confirm-mapping">
+              Validate Mapped Records →
+            </button>
+          </div>
+        </div>
+
+        <!-- Validation & Duplicate Resolution Panel -->
+        <div class="settings-section-card" id="import-validation-card" style="display: none;">
+          <h2 style="font-size: 18px; font-weight: 700; color: var(--color-deep-navy); margin-bottom: 6px;">
+            3. Import Validation & Duplicates
+          </h2>
+          
+          <div class="validation-metrics-grid">
+            <div class="validation-metric-card">
+              <div class="num" id="val-metric-total">0</div>
+              <div class="label">Total Detected</div>
+            </div>
+            <div class="validation-metric-card">
+              <div class="num" id="val-metric-valid" style="color: var(--color-success-green);">0</div>
+              <div class="label">✓ Valid Cases</div>
+            </div>
+            <div class="validation-metric-card">
+              <div class="num" id="val-metric-warnings" style="color: #D97706;">0</div>
+              <div class="label">⚠ Warnings</div>
+            </div>
+            <div class="validation-metric-card">
+              <div class="num" id="val-metric-errors" style="color: var(--color-warning-red);">0</div>
+              <div class="label">✕ Errors</div>
+            </div>
+            <div class="validation-metric-card">
+              <div class="num" id="val-metric-duplicates" style="color: var(--color-wise-blue);">0</div>
+              <div class="label">Duplicates</div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; padding: 14px; background: #F8FAFC; border-radius: var(--radius-md); margin-bottom: 16px;">
+            <div>
+              <span style="font-size: 14px; font-weight: 700; color: var(--color-deep-navy);">Duplicate Case Policy:</span>
+              <span style="font-size: 13px; color: var(--color-slate-gray); display: block;">Choose how to handle cases whose ID or title already exists in your curriculum.</span>
+            </div>
+            <select id="import-duplicate-strategy" class="form-select" style="max-width: 260px;">
+              <option value="copy" selected>Create Unique Copies (CASE-XXX-COPY)</option>
+              <option value="replace">Replace Existing Cases</option>
+              <option value="skip">Skip Duplicate Cases</option>
+            </select>
+          </div>
+
+          <div id="import-validation-breakdown" style="max-height: 240px; overflow-y: auto; border: 1px solid var(--color-light-gray); border-radius: var(--radius-md); padding: 12px; margin-bottom: 18px; font-size: 13px; background: #FFFFFF;">
+            <!-- Validation details rendered here -->
+          </div>
+
+          <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-import-run">
+              Cancel
+            </button>
+            <button type="button" class="btn btn-primary" id="btn-commit-import" disabled>
+              Commit Valid Cases to Curriculum
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------------
+         Screen 8: Settings & Architecture View
+         --------------------------------------------------------------------- -->
+    <section id="view-settings" class="app-view">
+      <div class="container container-narrow">
+        
+        <div class="admin-header-card">
+          <span class="badge badge-neutral">Platform Architecture</span>
+          <h1 class="view-main-title" style="margin-top: 8px;">Settings & Data Mode</h1>
+          <p class="view-subtitle">
+            Configure Layer B data persistence, switch between Local Mode and Google Sheets Cloud Mode, and customize clinical simulation parameters.
+          </p>
+        </div>
+
+        <!-- 1. Data Mode Selection -->
+        <div class="settings-section-card">
+          <h2 style="font-size: 18px; font-weight: 700; color: var(--color-deep-navy); margin-bottom: 6px;">
+            1. Data Persistence Mode
+          </h2>
+          <p style="font-size: 14px; color: var(--color-slate-gray); margin-bottom: 16px;">
+            WiseCases supports full offline client-side execution as well as multi-user Google Sheets persistence.
+          </p>
+
+          <div class="settings-radio-group">
+            <div class="settings-radio-card" id="mode-card-local" onclick="window.WISECASES?.setDataMode?.('local')">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-weight: 700; color: var(--color-deep-navy);">● Local Mode (Offline-First)</span>
+                <span class="badge badge-green" id="badge-mode-local">Active</span>
+              </div>
+              <p style="font-size: 13px; color: var(--color-slate-gray); line-height: 1.5; margin: 0;">
+                All curriculum cases, results, and imports are saved directly in your browser's localStorage. Zero backend, zero API key, runs on GitHub Pages or double-clicking index.html.
+              </p>
+            </div>
+
+            <div class="settings-radio-card" id="mode-card-google" onclick="window.WISECASES?.setDataMode?.('google')">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-weight: 700; color: var(--color-deep-navy);">○ Google Sheets Mode</span>
+                <span class="badge badge-neutral" id="badge-mode-google">Optional</span>
+              </div>
+              <p style="font-size: 13px; color: var(--color-slate-gray); line-height: 1.5; margin: 0;">
+                Connect to a free Google Spreadsheet via a Google Apps Script Web App. Centralizes cases, hides answer keys during gameplay, and stores class results in real-time.
+              </p>
+            </div>
+          </div>
+
+          <!-- Google Apps Script Configuration Box -->
+          <div class="gas-config-box" id="gas-config-container" style="display: none;">
+            <div style="font-weight: 700; color: var(--color-deep-navy); margin-bottom: 6px;">
+              Google Apps Script Web App URL
+            </div>
+            <p style="font-size: 13px; color: var(--color-slate-gray); margin-bottom: 12px;">
+              Paste the deployment URL generated by deploying your Apps Script project as a Web App (ends with <code>/exec</code>).
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <input type="url" id="settings-gas-url-input" class="form-input" style="flex: 1; min-width: 280px;" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+              <button type="button" class="btn btn-primary" id="btn-test-gas-connection">
+                Test Connection
+              </button>
+            </div>
+
+            <!-- Connection Status Live Output -->
+            <div id="gas-test-result-wrap" style="margin-top: 14px; display: none;">
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <span style="font-size: 13px; font-weight: 700;">Connection Status:</span>
+                <span class="badge badge-neutral" id="gas-status-badge">NOT CONNECTED</span>
+              </div>
+              <div class="gas-diagnostic-box" id="gas-diagnostic-box"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Gameplay Parameters -->
+        <div class="settings-section-card">
+          <h2 style="font-size: 18px; font-weight: 700; color: var(--color-deep-navy); margin-bottom: 6px;">
+            2. Clinical Simulation Defaults
+          </h2>
+          <p style="font-size: 14px; color: var(--color-slate-gray); margin-bottom: 16px;">
+            Adjust default gameplay rules applied when starting new clinical diagnosis challenges.
+          </p>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label" for="settings-default-lives">Starting Lives</label>
+              <input type="number" id="settings-default-lives" class="form-input" min="1" max="10" value="5">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="settings-starting-score">Starting Score</label>
+              <input type="number" id="settings-starting-score" class="form-input" min="100" max="5000" step="50" value="1000">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="settings-wrong-penalty">Wrong Answer Penalty</label>
+              <input type="number" id="settings-wrong-penalty" class="form-input" min="0" max="500" step="25" value="100">
+            </div>
+          </div>
+
+          <div style="margin-top: 18px; text-align: right;">
+            <button type="button" class="btn btn-primary" id="btn-save-game-settings">
+              Save Simulation Defaults
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Player Identity & Privacy -->
+        <div class="settings-section-card">
+          <h2 style="font-size: 18px; font-weight: 700; color: var(--color-deep-navy); margin-bottom: 6px;">
+            3. Player Identity & Anonymous Tracking
+          </h2>
+          <p style="font-size: 14px; color: var(--color-slate-gray); margin-bottom: 14px;">
+            WiseCases respects your privacy. All diagnostic records are indexed by an anonymous random token.
+          </p>
+
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; background: #F8FAFC; padding: 14px; border-radius: var(--radius-md);">
+            <div>
+              <span style="font-size: 12px; font-weight: 700; color: var(--color-slate-gray); text-transform: uppercase;">Your Anonymous ID:</span>
+              <div style="font-size: 18px; font-weight: 800; color: var(--color-wise-blue); font-family: monospace; margin-top: 2px;" id="settings-player-id-display">WC-SHQ4EW7X</div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-regenerate-player-id">
+              Generate New Anonymous ID
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. Danger Zone -->
+        <div class="settings-section-card" style="border-left: 4px solid var(--color-warning-red);">
+          <h2 style="font-size: 18px; font-weight: 700; color: var(--color-warning-red); margin-bottom: 6px;">
+            4. Reset & Data Management
+          </h2>
+          <p style="font-size: 14px; color: var(--color-slate-gray); margin-bottom: 16px;">
+            Perform destructive administrative maintenance operations. All actions require confirmation.
+          </p>
+
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-outline-danger" id="btn-settings-clear-history">
+              Clear Diagnostic History
+            </button>
+            <button type="button" class="btn btn-outline-danger" id="btn-settings-reset-demo">
+              Reset Demo Curriculum
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- =========================================================================
+       Modal Dialogs
+       ========================================================================= -->
+
+  <!-- Modal 1: Case Editor Modal (Create / Edit) -->
+  <div id="modal-case-editor" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-editor-title">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-editor-title">Create / Edit Clinical Case</h3>
+        <button class="modal-close-btn" id="modal-editor-close" aria-label="Close modal">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <form id="case-editor-form">
+          <!-- Hidden edit indicator -->
+          <input type="hidden" id="edit-original-id">
+
+          <!-- Section 1: Basic Information -->
+          <details class="editor-accordion" open>
+            <summary class="editor-accordion-summary">BASIC INFORMATION</summary>
+            <div class="editor-accordion-body">
+              <div class="form-grid-3">
+                <div class="form-group">
+                  <label class="form-label" for="form-case-id">Case ID *</label>
+                  <input type="text" id="form-case-id" class="form-input" placeholder="CASE-001" required>
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                  <label class="form-label" for="form-case-title">Case Title *</label>
+                  <input type="text" id="form-case-title" class="form-input" placeholder="e.g. Decompensated Alcoholic Liver Disease" required>
+                </div>
+              </div>
+
+              <div class="form-grid-4" style="margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px;">
+                <div class="form-group">
+                  <label class="form-label" for="form-case-category">Category *</label>
+                  <input type="text" id="form-case-category" class="form-input" placeholder="e.g. Medicine, Surgery..." required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="form-case-subcategory">Subcategory</label>
+                  <input type="text" id="form-case-subcategory" class="form-input" placeholder="e.g. Gastroenterology">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="form-case-difficulty">Difficulty</label>
+                  <select id="form-case-difficulty" class="form-select">
+                    <option value="Progressive">Progressive</option>
+                    <option value="Foundation">Foundation</option>
+                    <option value="Advanced">Advanced</option>
+                    <option value="Mastery">Mastery</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="form-case-status">Status</label>
+                  <select id="form-case-status" class="form-select">
+                    <option value="Published">Published</option>
+                    <option value="Draft">Draft</option>
+                    <option value="Review">Review</option>
+                    <option value="Archived">Archived</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-grid-3" style="margin-top: 12px;">
+                <div class="form-group">
+                  <label class="form-label" for="form-starting-lives">Starting Lives</label>
+                  <input type="number" id="form-starting-lives" class="form-input" value="5" min="1" max="10" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="form-patient-age">Patient Age</label>
+                  <input type="text" id="form-patient-age" class="form-input" placeholder="e.g. 48">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="form-patient-sex">Patient Sex</label>
+                  <input type="text" id="form-patient-sex" class="form-input" placeholder="e.g. Male / Female">
+                </div>
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-patient-summary">Patient Summary Note</label>
+                <input type="text" id="form-patient-summary" class="form-input" placeholder="One-line summary for the case card and header">
+              </div>
+            </div>
+          </details>
+
+          <!-- Section 2: Progressive Clue Stages -->
+          <details class="editor-accordion">
+            <summary class="editor-accordion-summary">STAGES</summary>
+            <div class="editor-accordion-body">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <span style="font-size: 14px; color: var(--color-slate-gray);">Progressive Clue Stages (Any Number Supported)</span>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-add-stage">
+                  + Add Clue Stage
+                </button>
+              </div>
+              <div class="stages-editor-list" id="stages-editor-list">
+                <!-- Stage cards injected dynamically -->
+              </div>
+            </div>
+          </details>
+
+          <!-- Section 3: Definitive Diagnosis -->
+          <details class="editor-accordion">
+            <summary class="editor-accordion-summary">DIAGNOSIS</summary>
+            <div class="editor-accordion-body">
+              <div class="form-group">
+                <label class="form-label" for="form-correct-diagnosis">Primary Correct Diagnosis *</label>
+                <input type="text" id="form-correct-diagnosis" class="form-input" placeholder="e.g. Autoimmune Hepatitis" required>
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-display-diagnosis">Display Diagnosis (Full Clinical Name)</label>
+                <input type="text" id="form-display-diagnosis" class="form-input" placeholder="e.g. Definite Autoimmune Hepatitis with Ishak Stage 4 Bridging Fibrosis">
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-accepted-answers">Accepted Variant Answers (One per line)</label>
+                <textarea id="form-accepted-answers" class="form-textarea" placeholder="Autoimmune Hepatitis&#10;AIH&#10;Definite Autoimmune Hepatitis" rows="3"></textarea>
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-aliases">Aliases / Acronyms (Comma separated)</label>
+                <input type="text" id="form-aliases" class="form-input" placeholder="e.g. AIH, Type 1 AIH">
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-diagnosis-short-explanation">Short Explanation (For immediate correct feedback)</label>
+                <input type="text" id="form-diagnosis-short-explanation" class="form-input" placeholder="Brief diagnostic rationale...">
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-diagnosis-detailed-explanation">Detailed Explanation (Why this is the diagnosis)</label>
+                <textarea id="form-diagnosis-detailed-explanation" class="form-textarea" placeholder="Comprehensive clinical debrief explaining why this diagnosis fits all findings..." rows="3"></textarea>
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-decisive-findings">Decisive Findings (One per line)</label>
+                <textarea id="form-decisive-findings" class="form-textarea" placeholder="Interface hepatitis on biopsy&#10;Markedly elevated serum IgG&#10;Positive ANA and ASMA" rows="3"></textarea>
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-final-reasoning">Final Reasoning</label>
+                <textarea id="form-final-reasoning" class="form-textarea" placeholder="Complete step-by-step diagnostic journey from presentation through definitive verification..." rows="3"></textarea>
+              </div>
+            </div>
+          </details>
+
+          <!-- Section 4: Differential Diagnoses -->
+          <details class="editor-accordion">
+            <summary class="editor-accordion-summary">DIFFERENTIAL DIAGNOSES</summary>
+            <div class="editor-accordion-body">
+              <p style="font-size: 13px; color: var(--color-slate-gray); margin-bottom: 8px;">
+                Define alternative conditions evaluated, why they were considered, and why they were rejected.
+              </p>
+              <div class="form-group">
+                <label class="form-label" for="form-differentials-json">Differential Diagnoses (JSON Array)</label>
+                <textarea id="form-differentials-json" class="form-textarea" style="font-family: monospace; font-size: 12px;" rows="6" placeholder='[&#10;  {&#10;    "name": "Primary Biliary Cholangitis",&#10;    "whyConsidered": "Female with fatigue and elevated GGT",&#10;    "whyRejected": "Normal ALP and negative AMA",&#10;    "clinicalExplanation": "PBC targets interlobular bile ducts rather than hepatocytes"&#10;  }&#10;]'></textarea>
+              </div>
+            </div>
+          </details>
+
+          <!-- Section 5: Wrong Answer Explanations -->
+          <details class="editor-accordion">
+            <summary class="editor-accordion-summary">WRONG ANSWER EXPLANATIONS</summary>
+            <div class="editor-accordion-body">
+              <p style="font-size: 13px; color: var(--color-slate-gray); margin-bottom: 8px;">
+                Provide targeted educational feedback when learners submit common wrong diagnoses.
+              </p>
+              <div class="form-group">
+                <label class="form-label" for="form-wrong-answers-json">Wrong Answer Explanations (JSON Array)</label>
+                <textarea id="form-wrong-answers-json" class="form-textarea" style="font-family: monospace; font-size: 12px;" rows="6" placeholder='[&#10;  {&#10;    "condition": "Hepatitis A",&#10;    "aliases": ["HAV"],&#10;    "explanation": "Viral serologies were non-reactive and presentation is chronic",&#10;    "missedClues": ["Non-reactive serologies", "Marked IgG elevation"],&#10;    "betterDirection": "Consider autoimmune liver disease"&#10;  }&#10;]'></textarea>
+              </div>
+            </div>
+          </details>
+
+          <!-- Section 6: Clinical Insight -->
+          <details class="editor-accordion">
+            <summary class="editor-accordion-summary">CLINICAL INSIGHT</summary>
+            <div class="editor-accordion-body">
+              <div class="form-group">
+                <label class="form-label" for="form-insight-title">Insight Title</label>
+                <input type="text" id="form-insight-title" class="form-input" placeholder="e.g. The Biliary Colic Mimic and GGT Discordance">
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-insight-content">Insight Content</label>
+                <textarea id="form-insight-content" class="form-textarea" placeholder="Important clinical teaching point connecting the findings..." rows="3"></textarea>
+              </div>
+            </div>
+          </details>
+
+          <!-- Section 7: Diagnostic Reasoning Chain -->
+          <details class="editor-accordion">
+            <summary class="editor-accordion-summary">DIAGNOSTIC REASONING</summary>
+            <div class="editor-accordion-body">
+              <p style="font-size: 13px; color: var(--color-slate-gray); margin-bottom: 8px;">
+                Structured chain showing: Step → Finding → Clinical Meaning → Diagnostic Decision.
+              </p>
+              <div class="form-group">
+                <label class="form-label" for="form-diagnostic-reasoning-json">Reasoning Chain (JSON Array)</label>
+                <textarea id="form-diagnostic-reasoning-json" class="form-textarea" style="font-family: monospace; font-size: 12px;" rows="6" placeholder='[&#10;  { "step": 1, "finding": "RUQ pain with scapular radiation", "meaning": "Overlaps with biliary colic", "decision": "Order ultrasound and LFTs" }&#10;]'></textarea>
+              </div>
+            </div>
+          </details>
+
+          <!-- Section 8: Learning Points & References -->
+          <details class="editor-accordion">
+            <summary class="editor-accordion-summary">LEARNING POINTS & REFERENCES</summary>
+            <div class="editor-accordion-body">
+              <div class="form-group">
+                <label class="form-label" for="form-clinical-summary">Clinical Summary</label>
+                <textarea id="form-clinical-summary" class="form-textarea" placeholder="Comprehensive summary of presentation, disease mechanism, and outcome..." rows="3"></textarea>
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-clinical-reasoning">Pathophysiologic Reasoning</label>
+                <textarea id="form-clinical-reasoning" class="form-textarea" placeholder="Detailed medical mechanisms and organ interactions..." rows="3"></textarea>
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-pitfalls">Where Reasoning Can Go Wrong (One per line)</label>
+                <textarea id="form-pitfalls" class="form-textarea" placeholder="Mistaking capsular distension for gallbladder colic&#10;Dismissing isolated GGT elevation" rows="3"></textarea>
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-learning-points">Key Learning Points (One per line)</label>
+                <textarea id="form-learning-points" class="form-textarea" placeholder="Always check IgG in persistent transaminitis&#10;Ultrasound does not exclude bridging fibrosis" rows="3"></textarea>
+              </div>
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="form-references">References (Format: Title | URL per line)</label>
+                <textarea id="form-references" class="form-textarea" placeholder="EASL Practice Guidelines | https://www.easl.eu/guidelines" rows="2"></textarea>
+              </div>
+            </div>
+          </details>
+
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="modal-editor-cancel">Cancel</button>
+        <button type="button" class="btn btn-secondary" id="btn-editor-preview">Preview Case</button>
+        <button type="button" class="btn btn-secondary" id="btn-editor-export-single">Export JSON</button>
+        <button type="button" class="btn btn-primary" id="btn-editor-save">Save Case</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Import JSON Modal -->
+  <div id="modal-import-json" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-import-title">
+    <div class="modal-container" style="max-width: 640px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-import-title">Import Clinical Cases JSON</h3>
+        <button class="modal-close-btn" id="modal-import-close" aria-label="Close modal">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <p style="font-size: 14px; color: var(--color-slate-gray);">
+          Select a <code>.json</code> file or paste JSON containing either a single case object or an object with a <code>"cases": [...]</code> array.
+        </p>
+
+        <!-- Dropzone / File Picker -->
+        <div class="import-dropzone" id="import-dropzone">
+          <svg style="margin: 0 auto 10px; color: var(--color-ai-glow-blue);" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <div style="font-weight: 700; color: var(--color-deep-navy); margin-bottom: 4px;">Click to browse or drop JSON file here</div>
+          <div style="font-size: 12px; color: var(--color-slate-gray);">Supports standard WiseCases schema</div>
+          <input type="file" id="import-file-input" accept=".json" style="display: none;">
+        </div>
+
+        <div class="form-group" style="margin-top: 14px;">
+          <label class="form-label" for="import-json-textarea">Or Paste Raw JSON Below:</label>
+          <textarea id="import-json-textarea" class="form-textarea" style="min-height: 140px; font-family: monospace; font-size: 12px;" placeholder='{ "cases": [ ... ] }'></textarea>
+        </div>
+
+        <!-- Validation Summary Card -->
+        <div class="import-feedback-box" id="import-validation-box">
+          <div style="font-weight: 800; margin-bottom: 4px;" id="import-val-summary">IMPORT VALIDATION</div>
+          <div id="import-val-details" style="font-size: 13px; line-height: 1.5;"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="modal-import-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btn-import-confirm" disabled>Import Cases</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Confirmation Dialog (Generic & Safe) -->
+  <div id="modal-confirm" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-confirm-title">
+    <div class="modal-container" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-confirm-title">Confirm Action</h3>
+        <button class="modal-close-btn" id="modal-confirm-close" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="modal-confirm-message" style="font-size: 15px; color: var(--color-deep-navy); line-height: 1.5;">
+          Are you sure you want to proceed?
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="modal-confirm-cancel">Cancel</button>
+        <button type="button" class="btn btn-accent-red" id="modal-confirm-proceed">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Duplicate Warning Dialog -->
+  <div id="modal-duplicate-warning" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-dup-title">
+    <div class="modal-container" style="max-width: 540px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #D97706; font-size: 20px;">⚠️</span>
+          <h3 class="modal-title" id="modal-dup-title">Possible Duplicate Detected</h3>
+        </div>
+        <button class="modal-close-btn" id="modal-dup-close" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="duplicate-warning-box">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+            <strong id="dup-type-label" style="font-size: 14px; color: #92400E;">High Case Similarity</strong>
+            <span class="duplicate-match-badge" id="dup-similarity-badge">85% Match</span>
+          </div>
+          <div id="dup-warning-details" style="font-size: 13px; line-height: 1.5; color: #78350F;">
+            This new case appears substantially similar to an existing case in your curriculum library.
+          </div>
+        </div>
+        <div id="dup-existing-case-summary" style="background: #F8FAFC; border: 1px solid var(--color-light-gray); border-radius: var(--radius-md); padding: 12px; margin-bottom: 12px; font-size: 13px;">
+          <!-- Injected dynamically -->
+        </div>
+        <p style="font-size: 13px; color: var(--color-slate-gray); line-height: 1.4;">
+          WiseCases will <strong>never silently delete or overwrite</strong> existing content without your explicit confirmation.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-dup-cancel">Cancel</button>
+        <button type="button" class="btn btn-secondary" id="btn-dup-view-existing">View Existing Case</button>
+        <button type="button" class="btn btn-primary" id="btn-dup-add-anyway">Add Anyway</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Excel / Spreadsheet Case Inventory Modal -->
+  <div id="modal-case-inventory" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-inventory-title">
+    <div class="modal-container" style="max-width: 680px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-wise-blue);">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="3" y1="9" x2="21" y2="9"></line>
+            <line x1="3" y1="15" x2="21" y2="15"></line>
+            <line x1="9" y1="3" x2="9" y2="21"></line>
+            <line x1="15" y1="3" x2="15" y2="21"></line>
+          </svg>
+          <h3 class="modal-title" id="modal-inventory-title">Excel & Spreadsheet Case Inventory</h3>
+        </div>
+        <button class="modal-close-btn" id="modal-inventory-close" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 14px; color: var(--color-slate-gray); line-height: 1.5; margin-bottom: 14px;">
+          WiseCases supports managing and authoring cases systematically through Excel or Google Sheets. The curriculum inventory uses structured sheets for Cases, Stages, Investigations, Differentials, Learning Points, and Conditions.
+        </p>
+
+        <div style="background: #F8FAFC; border: 1px solid var(--color-light-gray); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
+          <h4 style="font-size: 13px; font-weight: 700; color: var(--color-deep-navy); margin-bottom: 6px; text-transform: uppercase;">Spreadsheet Schema Overview</h4>
+          <ul style="font-size: 13px; color: var(--color-slate-gray); line-height: 1.6; margin: 0; padding-left: 20px;">
+            <li><strong>CASES</strong>: case_id, title, category, subcategory, difficulty, status, starting_lives, primary_diagnosis</li>
+            <li><strong>STAGES</strong>: case_id, stage_number, stage_title, clue, decision_question, important_clues</li>
+            <li><strong>INVESTIGATIONS</strong>: case_id, stage_number, test_name, value, unit, interpretation</li>
+            <li><strong>DIFFERENTIALS</strong>: case_id, diagnosis, reason_considered, reason_rejected</li>
+            <li><strong>LEARNING_POINTS</strong>: case_id, point_number, learning_point</li>
+            <li><strong>CONDITIONS</strong>: condition_id, condition_name, aliases, specialty</li>
+          </ul>
+        </div>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-primary" id="btn-export-inventory-csv">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Export Case Inventory (CSV)
+          </button>
+          <button type="button" class="btn btn-secondary" id="btn-export-inventory-template">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+            </svg>
+            Download Excel Template (CSV)
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="modal-inventory-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+  <!-- =========================================================================
+       Footer
+       ========================================================================= -->
+  <footer class="app-footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <span class="footer-brand">Wise<span>Ai</span>Techs • WiseCases</span>
+        <span class="footer-copy">For All Medicos — Practical AI Implementation & Clinical Systems.</span>
+      </div>
+      <ul class="footer-links">
+        <li><a href="#home" class="footer-link">Home</a></li>
+        <li><a href="#library" class="footer-link">Case Library</a></li>
+        <li><a href="#results" class="footer-link">My Results</a></li>
+        <li><a href="#admin" class="footer-link">Admin Studio</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <!-- Application Configuration & Logic -->
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
