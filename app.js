@@ -18,13 +18,16 @@
   // ==========================================================================
   // CONFIGURATION SYSTEM
   // ==========================================================================
-  const WISECASES_CONFIG = {
-    mode: "local", // "local" | "google-apps-script"
-    googleAppsScript: {
-      enabled: false,
-      baseUrl: ""
-    }
-  };
+  // Prefer config.js (and any saved Settings override it already applied).
+  const WISECASES_CONFIG = (typeof window !== 'undefined' && window.WISECASES_CONFIG)
+    ? window.WISECASES_CONFIG
+    : {
+        mode: "local", // "local" | "google"
+        googleAppsScript: {
+          enabled: false,
+          baseUrl: ""
+        }
+      };
 
   // ==========================================================================
   // 1. DEFAULT SEED CLINICAL CASES (Embedded fallback for 100% offline & file://)
@@ -2366,7 +2369,9 @@
   // ==========================================================================
   const CaseRepository = {
     get activeRepo() {
-      if (WISECASES_CONFIG.mode === 'google-apps-script' && WISECASES_CONFIG.googleAppsScript?.enabled) {
+      const mode = WISECASES_CONFIG.mode;
+      const googleMode = mode === 'google' || mode === 'google-apps-script';
+      if (googleMode && WISECASES_CONFIG.googleAppsScript?.enabled && WISECASES_CONFIG.googleAppsScript?.baseUrl) {
         return GoogleSheetsCaseRepository;
       }
       return LocalCaseRepository;
@@ -6029,6 +6034,13 @@
     },
 
     bindEvents() {
+      document.getElementById('mode-card-local')?.addEventListener('click', () => {
+        this.setDataMode('local');
+      });
+      document.getElementById('mode-card-google')?.addEventListener('click', () => {
+        this.setDataMode('google');
+      });
+
       document.getElementById('btn-test-gas-connection')?.addEventListener('click', () => {
         this.testGasConnection();
       });
