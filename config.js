@@ -12,8 +12,8 @@
 
     // Google Apps Script Web App connection settings
     googleAppsScript: {
-      enabled: false,
-      baseUrl: "", // e.g. "https://script.google.com/macros/s/AKfycbx.../exec"
+      enabled: true,
+      baseUrl: "https://script.google.com/macros/s/AKfycbx1TWEOFmV3q0PBvAAiJEcs8UYRqujYrKzmJT6trwXS8a7hf6kWSfg4a193xzUb5JKC/exec", // e.g. "https://script.google.com/macros/s/AKfycbx.../exec"
       timeoutMs: 12000
     },
 
