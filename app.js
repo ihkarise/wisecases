@@ -2320,117 +2320,305 @@
   };
 
   // ==========================================================================
-  // 3B. GOOGLE SHEETS CASE REPOSITORY (Layer B: Prepared for Google Apps Script)
+  // 3B. GOOGLE SHEETS CASE REPOSITORY (Google Apps Script Web App)
   // ==========================================================================
   const GoogleSheetsCaseRepository = {
-    async _request(action, payload = {}) {
+    _cases: [],
+    lastError: '',
+    adminError: '',
+    lastSyncedAt: null,
+
+    adminKey() {
+      return String(WISECASES_CONFIG.googleAppsScript?.adminKey || '').trim();
+    },
+
+    _authFields() {
+      const adminKey = this.adminKey();
+      return { adminKey, key: adminKey, admin_key: adminKey };
+    },
+
+    _requireAdminKey() {
+      if (!this.adminKey()) {
+        throw new Error('Add the Google Apps Script administrator key in Settings. The sheet rejects case edits without it.');
+      }
+    },
+
+    _normalizeList(data) {
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.cases)) return data.cases;
+      if (data && Array.isArray(data.items)) return data.items;
+      return [];
+    },
+
+    _unwrap(json) {
+      if (!json || json.success === false) {
+        const msg = json?.error?.message || json?.error || 'Google Sheets request failed.';
+        const err = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
+        err.code = json?.error?.code || '';
+        throw err;
+      }
+      return Object.prototype.hasOwnProperty.call(json, 'data') ? json.data : json;
+    },
+
+    async _request(action, payload = null, method = 'GET') {
       const config = WISECASES_CONFIG.googleAppsScript;
       if (!config || !config.baseUrl) {
-        throw new Error('[GoogleSheetsCaseRepository] Google Apps Script baseUrl is not configured.');
+        throw new Error('Google Apps Script Web App URL is not configured.');
       }
-      const url = new URL(config.baseUrl);
-      url.searchParams.set('action', action);
-      const isPost = payload && Object.keys(payload).length > 0;
-      const resp = await fetch(url.toString(), {
-        method: isPost ? 'POST' : 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        body: isPost ? JSON.stringify(payload) : undefined
+
+      const controller = new AbortController();
+      const timeoutMs = Number(config.timeoutMs) || 20000;
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        let resp;
+        if (method === 'GET') {
+          const url = new URL(config.baseUrl);
+          url.searchParams.set('action', action);
+          const params = payload || {};
+          Object.keys(params).forEach(key => {
+            const value = params[key];
+            if (value !== undefined && value !== null && value !== '') {
+              url.searchParams.set(key, String(value));
+            }
+          });
+          resp = await fetch(url.toString(), { method: 'GET', signal: controller.signal });
+        } else {
+          // text/plain avoids a CORS preflight. Apps Script answers on the redirect.
+          const body = Object.assign({ action }, payload || {});
+          resp = await fetch(config.baseUrl, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(body),
+            signal: controller.signal
+          });
+        }
+
+        if (!resp.ok) {
+          throw new Error(`Google Sheets HTTP ${resp.status}`);
+        }
+        const json = await resp.json();
+        return this._unwrap(json);
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          throw new Error('Google Sheets request timed out. Check the Web App URL and try again.');
+        }
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+
+    async _fetchCases() {
+      let rows = this._normalizeList(await this._request('getCases'));
+      this.adminError = '';
+      if (this.adminKey()) {
+        try {
+          const full = this._normalizeList(await this._request('exportCases', this._authFields(), 'GET'));
+          if (full.length) {
+            const merged = new Map(rows.map(c => [String(c.id).toLowerCase(), c]));
+            full.forEach(c => {
+              if (c && c.id) merged.set(String(c.id).toLowerCase(), c);
+            });
+            rows = Array.from(merged.values());
+          }
+        } catch (err) {
+          this.adminError = err.message || String(err);
+          console.warn('[GoogleSheetsCaseRepository] exportCases skipped:', this.adminError);
+        }
+      }
+      rows.forEach(c => {
+        if (c && !c.status) c.status = 'Published';
       });
-      if (!resp.ok) {
-        throw new Error(`[GoogleSheetsCaseRepository] HTTP error ${resp.status}`);
-      }
-      return await resp.json();
+      return rows;
     },
 
-    async getAllCases() {
-      return await this._request('GET_CASES');
-    },
-
-    async getCase(caseId) {
-      return await this._request('GET_CASE', { caseId });
-    },
-
-    async getStage(caseId, stageNumber) {
-      return await this._request('GET_STAGE', { caseId, stageNumber });
-    },
-
-    async submitAnswer(caseId, stageNumber, answer) {
-      // Answer Security: Evaluated remotely in Google Apps Script against private sheet
-      return await this._request('SUBMIT_ANSWER', { caseId, stage: stageNumber, answer });
-    },
-
-    async saveResult(resultRecord) {
-      return await this._request('SAVE_RESULT', resultRecord);
-    }
-  };
-
-  // ==========================================================================
-  // 3C. CASE REPOSITORY FACADE (Layer B Public Contract)
-  // ==========================================================================
-  const CaseRepository = {
-    get activeRepo() {
-      const mode = WISECASES_CONFIG.mode;
-      const googleMode = mode === 'google' || mode === 'google-apps-script';
-      if (googleMode && WISECASES_CONFIG.googleAppsScript?.enabled && WISECASES_CONFIG.googleAppsScript?.baseUrl) {
-        return GoogleSheetsCaseRepository;
-      }
-      return LocalCaseRepository;
+    async reload() {
+      const cases = await this._fetchCases();
+      this._cases = cases;
+      this.lastError = '';
+      this.lastSyncedAt = new Date().toISOString();
+      StorageService.set('wisecases_sheet_cache_v1', cases);
+      return cases;
     },
 
     async init() {
-      return await LocalCaseRepository.init();
+      try {
+        return await this.reload();
+      } catch (err) {
+        this.lastError = err.message || String(err);
+        const cached = StorageService.get('wisecases_sheet_cache_v1', []);
+        this._cases = Array.isArray(cached) ? cached : [];
+        console.warn('[GoogleSheetsCaseRepository] Using last sheet snapshot:', this.lastError);
+        return this._cases;
+      }
     },
 
     getAllCases() {
-      return LocalCaseRepository.getAllCases();
+      return [...this._cases];
     },
 
     getAll() {
-      return LocalCaseRepository.getAll();
+      return [...this._cases];
     },
 
     getCase(caseId) {
-      return LocalCaseRepository.getCase(caseId);
+      if (!caseId) return null;
+      return this._cases.find(c => String(c.id).toLowerCase() === String(caseId).toLowerCase()) || null;
     },
 
     getById(id) {
-      return LocalCaseRepository.getById(id);
+      return this.getCase(id);
     },
 
     getStage(caseId, stageNumber) {
-      return LocalCaseRepository.getStage(caseId, stageNumber);
+      const c = this.getCase(caseId);
+      if (!c || !Array.isArray(c.stages)) return null;
+      const num = Number(stageNumber);
+      return c.stages.find(s => s.stage === num) || c.stages[num - 1] || null;
     },
 
-    searchCases(query, category) {
-      return LocalCaseRepository.searchCases(query, category);
+    searchCases(query = '', category = '') {
+      return LocalCaseRepository.searchCases.call({ _cases: this._cases }, query, category);
     },
 
-    saveCase(caseObj) {
-      return LocalCaseRepository.saveCase(caseObj);
+    _upsertMemory(caseObj) {
+      const idx = this._cases.findIndex(c => String(c.id).toLowerCase() === String(caseObj.id).toLowerCase());
+      if (idx >= 0) this._cases[idx] = caseObj;
+      else this._cases.push(caseObj);
+      StorageService.set('wisecases_sheet_cache_v1', this._cases);
+    },
+
+    async saveCase(caseObj) {
+      const val = LocalCaseRepository.validateCase(caseObj);
+      if (!val.valid) throw new Error(val.errors.join('; '));
+      this._requireAdminKey();
+      if (!caseObj.status) caseObj.status = 'Published';
+
+      const exists = this.getCase(caseObj.id);
+      const action = exists ? 'updateCase' : 'saveCase';
+      const payload = Object.assign({}, this._authFields(), {
+        caseId: caseObj.id,
+        id: caseObj.id,
+        case: caseObj,
+        caseData: caseObj
+      });
+
+      try {
+        await this._request(action, payload, 'POST');
+      } catch (err) {
+        const missing = /not found|does not exist|unknown case/i.test(err.message || '');
+        if (action === 'updateCase' && missing) {
+          await this._request('saveCase', payload, 'POST');
+        } else if (action === 'saveCase' && /already exists|duplicate/i.test(err.message || '')) {
+          await this._request('updateCase', payload, 'POST');
+        } else {
+          throw err;
+        }
+      }
+
+      this._upsertMemory(caseObj);
+      this.lastSyncedAt = new Date().toISOString();
+      return caseObj;
     },
 
     save(caseObj) {
-      return LocalCaseRepository.save(caseObj);
+      return this.saveCase(caseObj);
     },
 
     updateCase(caseObj) {
-      return LocalCaseRepository.updateCase(caseObj);
+      return this.saveCase(caseObj);
     },
 
-    duplicateCase(caseId) {
-      return LocalCaseRepository.duplicateCase(caseId);
-    },
-
-    duplicate(id) {
-      return LocalCaseRepository.duplicate(id);
-    },
-
-    deleteCase(caseId) {
-      return LocalCaseRepository.deleteCase(caseId);
+    async deleteCase(caseId) {
+      this._requireAdminKey();
+      await this._request('deleteCase', Object.assign({}, this._authFields(), {
+        caseId,
+        id: caseId
+      }), 'POST');
+      this._cases = this._cases.filter(c => String(c.id).toLowerCase() !== String(caseId).toLowerCase());
+      StorageService.set('wisecases_sheet_cache_v1', this._cases);
+      this.lastSyncedAt = new Date().toISOString();
+      return true;
     },
 
     delete(id) {
-      return LocalCaseRepository.delete(id);
+      return this.deleteCase(id);
+    },
+
+    async duplicateCase(caseId) {
+      const original = this.getCase(caseId);
+      if (!original) throw new Error(`Case ${caseId} not found.`);
+
+      let counter = 1;
+      let newId = `${original.id}-COPY`;
+      while (this.getCase(newId)) {
+        counter++;
+        newId = `${original.id}-COPY-${counter}`;
+      }
+
+      const clone = JSON.parse(JSON.stringify(original));
+      clone.id = newId;
+      clone.title = `${original.title} (Duplicate)`;
+      clone.status = original.status || 'Published';
+      await this.saveCase(clone);
+      return clone;
+    },
+
+    duplicate(id) {
+      return this.duplicateCase(id);
+    },
+
+    async bulkImport(validCases) {
+      const list = Array.isArray(validCases) ? validCases : [];
+      if (!list.length) return 0;
+      this._requireAdminKey();
+      try {
+        await this._request('bulkImport', Object.assign({}, this._authFields(), {
+          cases: list,
+          validCases: list,
+          replace: false
+        }), 'POST');
+      } catch (err) {
+        if (/UNAUTHORIZED/i.test(err.message || '')) throw err;
+        for (const item of list) {
+          await this.saveCase(item);
+        }
+        return list.length;
+      }
+      list.forEach(item => this._upsertMemory(item));
+      this.lastSyncedAt = new Date().toISOString();
+      return list.length;
+    },
+
+    async commitImport(validCases) {
+      const count = await this.bulkImport(validCases);
+      try {
+        await this.reload();
+      } catch (err) {
+        console.warn('[GoogleSheetsCaseRepository] Reload after import failed:', err);
+      }
+      return count;
+    },
+
+    async resetToDemoData() {
+      this._requireAdminKey();
+      const seeds = JSON.parse(JSON.stringify(DEFAULT_SEED_CASES));
+      seeds.forEach(c => { if (!c.status) c.status = 'Published'; });
+      try {
+        await this._request('bulkImport', Object.assign({}, this._authFields(), {
+          cases: seeds,
+          validCases: seeds,
+          replace: true
+        }), 'POST');
+        seeds.forEach(item => this._upsertMemory(item));
+      } catch (err) {
+        if (/UNAUTHORIZED/i.test(err.message || '')) throw err;
+        for (const item of seeds) await this.saveCase(item);
+      }
+      this.lastSyncedAt = new Date().toISOString();
+      return this._cases;
     },
 
     validateCase(c) {
@@ -2441,16 +2629,140 @@
       return LocalCaseRepository.importCases(parsedData);
     },
 
-    commitImport(validCases) {
-      return LocalCaseRepository.commitImport(validCases);
-    },
-
     exportCase(caseId) {
-      return LocalCaseRepository.exportCase(caseId);
+      const c = this.getCase(caseId);
+      if (!c) throw new Error(`Case ${caseId} not found.`);
+      return JSON.stringify(c, null, 2);
     },
 
     exportAllCases() {
-      return LocalCaseRepository.exportAllCases();
+      return JSON.stringify({
+        schemaVersion: "2.0",
+        generatedAt: new Date().toISOString(),
+        source: "WiseCases Google Sheet",
+        totalCases: this._cases.length,
+        cases: this._cases
+      }, null, 2);
+    },
+
+    async startGame(caseId, playerId) {
+      return await this._request('startGame', {
+        caseId,
+        playerId: playerId || ''
+      }, 'POST');
+    },
+
+    async submitAnswer(sessionId, submittedAnswer, stageNumber) {
+      return await this._request('submitAnswer', {
+        sessionId,
+        submittedAnswer,
+        answer: submittedAnswer,
+        stage: stageNumber,
+        stageNumber
+      }, 'POST');
+    },
+
+    async saveResult(resultRecord) {
+      const result = Object.assign({}, resultRecord || {});
+      if (!result.caseId && result.case_id) result.caseId = result.case_id;
+      return await this._request('saveResult', { result }, 'POST');
+    }
+  };
+
+  // ==========================================================================
+  // 3C. CASE REPOSITORY FACADE (Layer B Public Contract)
+  // ==========================================================================
+  const CaseRepository = {
+    isGoogle() {
+      const mode = WISECASES_CONFIG.mode;
+      const googleMode = mode === 'google' || mode === 'google-apps-script';
+      return Boolean(googleMode && WISECASES_CONFIG.googleAppsScript?.enabled && WISECASES_CONFIG.googleAppsScript?.baseUrl);
+    },
+
+    get activeRepo() {
+      return this.isGoogle() ? GoogleSheetsCaseRepository : LocalCaseRepository;
+    },
+
+    async init() {
+      return await this.activeRepo.init();
+    },
+
+    getAllCases() {
+      return this.activeRepo.getAllCases();
+    },
+
+    getAll() {
+      return this.activeRepo.getAll();
+    },
+
+    learnerCases() {
+      const all = this.getAll();
+      if (!this.isGoogle()) return all;
+      return all.filter(c => String(c.status || 'Published').toLowerCase() === 'published');
+    },
+
+    getCase(caseId) {
+      return this.activeRepo.getCase(caseId);
+    },
+
+    getById(id) {
+      return this.activeRepo.getById(id);
+    },
+
+    getStage(caseId, stageNumber) {
+      return this.activeRepo.getStage(caseId, stageNumber);
+    },
+
+    searchCases(query, category) {
+      return this.activeRepo.searchCases(query, category);
+    },
+
+    saveCase(caseObj) {
+      return this.activeRepo.saveCase(caseObj);
+    },
+
+    save(caseObj) {
+      return this.activeRepo.save(caseObj);
+    },
+
+    updateCase(caseObj) {
+      return this.activeRepo.updateCase(caseObj);
+    },
+
+    duplicateCase(caseId) {
+      return this.activeRepo.duplicateCase(caseId);
+    },
+
+    duplicate(id) {
+      return this.activeRepo.duplicate(id);
+    },
+
+    deleteCase(caseId) {
+      return this.activeRepo.deleteCase(caseId);
+    },
+
+    delete(id) {
+      return this.activeRepo.delete(id);
+    },
+
+    validateCase(c) {
+      return this.activeRepo.validateCase(c);
+    },
+
+    importCases(parsedData) {
+      return this.activeRepo.importCases(parsedData);
+    },
+
+    commitImport(validCases) {
+      return this.activeRepo.commitImport(validCases);
+    },
+
+    exportCase(caseId) {
+      return this.activeRepo.exportCase(caseId);
+    },
+
+    exportAllCases() {
+      return this.activeRepo.exportAllCases();
     },
 
     submitAnswer(caseId, stageNumber, answer) {
@@ -2458,7 +2770,7 @@
     },
 
     resetToDemoData() {
-      return LocalCaseRepository.resetToDemoData();
+      return this.activeRepo.resetToDemoData();
     },
 
     ConditionRepository,
@@ -2502,6 +2814,13 @@
 
       this._results.unshift(record);
       StorageService.set(StorageService.KEYS.RESULTS, this._results);
+
+      if (typeof CaseRepository !== 'undefined' && CaseRepository.isGoogle && CaseRepository.isGoogle()) {
+        GoogleSheetsCaseRepository.saveResult(record).catch(err => {
+          console.warn('[ResultRepository] Could not write result to Google Sheet:', err);
+        });
+      }
+
       return record;
     },
 
@@ -2591,6 +2910,23 @@
       this.submittedAttempts = [];
       this.isFinished = false;
       this.isWon = false;
+      this._remoteSessionId = null;
+      this._sessionPromise = null;
+
+      if (!this.isPreview && typeof CaseRepository !== 'undefined' && CaseRepository.isGoogle && CaseRepository.isGoogle()) {
+        const playerId = (typeof PlayerService !== 'undefined' && PlayerService.getPlayerId) ? PlayerService.getPlayerId() : '';
+        this._sessionPromise = GoogleSheetsCaseRepository.startGame(this.activeCase.id, playerId)
+          .then(data => {
+            const sessionId = data && (data.sessionId || data.session_id || (data.session && (data.session.id || data.session.sessionId)));
+            this._remoteSessionId = sessionId || null;
+            return data;
+          })
+          .catch(err => {
+            console.warn('[GameEngine] Sheet session was not started:', err);
+            this._remoteSessionId = null;
+            return null;
+          });
+      }
 
       return this.getState();
     },
@@ -2622,14 +2958,19 @@
 
     checkAnswerMatch(userAnswer) {
       const normalizedUser = this.normalizeString(userAnswer);
-      if (!normalizedUser) return false;
+      if (!normalizedUser || !this.activeCase) return false;
 
-      // Evaluated via Layer B Repository abstraction
-      const res = LocalCaseRepository.submitAnswer(this.activeCase.id, this.currentStageIndex + 1, userAnswer);
-      return Boolean(res.correct);
+      const diag = this.activeCase.diagnosis || {};
+      const primary = this.normalizeString(diag.primary || diag.correctAnswer);
+      if (primary && normalizedUser === primary) return true;
+
+      const accepted = []
+        .concat(Array.isArray(diag.acceptedAnswers) ? diag.acceptedAnswers : [])
+        .concat(Array.isArray(diag.aliases) ? diag.aliases : []);
+      return accepted.some(answer => this.normalizeString(answer) === normalizedUser);
     },
 
-    submitDiagnosis(userAnswer) {
+    async submitDiagnosis(userAnswer) {
       if (this.isFinished) {
         return { status: 'FINISHED', state: this.getState() };
       }
@@ -2639,7 +2980,29 @@
         return { status: 'EMPTY_INPUT', state: this.getState() };
       }
 
-      const isMatch = this.checkAnswerMatch(trimmedAnswer);
+      if (this._sessionPromise) {
+        try { await this._sessionPromise; } catch (e) { /* local grading still works */ }
+      }
+
+      this._remoteLives = null;
+      this._remoteScore = null;
+      const hasLocalKey = Boolean(this.activeCase?.diagnosis?.correctAnswer || this.activeCase?.diagnosis?.primary);
+      let isMatch = false;
+      if (this._remoteSessionId && !hasLocalKey) {
+        const remote = await GoogleSheetsCaseRepository.submitAnswer(
+          this._remoteSessionId,
+          trimmedAnswer,
+          this.currentStageIndex + 1
+        );
+        isMatch = Boolean(remote && (remote.correct === true || remote.isCorrect === true || remote.status === 'CORRECT' || remote.outcome === 'correct'));
+        this._remoteLives = (remote && typeof remote.livesRemaining === 'number') ? remote.livesRemaining : null;
+        this._remoteScore = (remote && typeof remote.score === 'number') ? remote.score : null;
+        if (remote && remote.correctAnswer && !this.activeCase.diagnosis) {
+          this.activeCase.diagnosis = { correctAnswer: remote.correctAnswer, acceptedAnswers: [remote.correctAnswer] };
+        }
+      } else {
+        isMatch = this.checkAnswerMatch(trimmedAnswer);
+      }
       const stageNum = this.currentStageIndex + 1;
       const normAns = this.normalizeString(trimmedAnswer);
 
@@ -2725,6 +3088,8 @@
       // Handle Incorrect Answer
       this.livesRemaining = Math.max(0, this.livesRemaining - this.lifeLossPerWrong);
       this.currentScore = Math.max(0, this.currentScore - this.wrongScorePenalty);
+      if (typeof this._remoteLives === 'number') this.livesRemaining = this._remoteLives;
+      if (typeof this._remoteScore === 'number') this.currentScore = this._remoteScore;
 
       this.submittedAttempts.push({
         stageNumber: stageNum,
@@ -3135,17 +3500,38 @@
       document.getElementById('btn-admin-export-all')?.addEventListener('click', () => {
         AdminManager.exportAllCases();
       });
+      document.getElementById('btn-admin-refresh-sheet')?.addEventListener('click', async () => {
+        if (!CaseRepository.isGoogle()) {
+          this.showToast('Switch to Google Sheets mode in Settings to refresh from the sheet.', 'info');
+          return;
+        }
+        try {
+          await GoogleSheetsCaseRepository.reload();
+          this.renderLibraryCases();
+          this.renderAdminCases();
+          const count = CaseRepository.learnerCases().length;
+          this.showToast(`Reloaded ${count} published case${count === 1 ? '' : 's'} from the Google Sheet.`, 'success');
+        } catch (err) {
+          this.showToast(err.message || 'Could not refresh the Google Sheet.', 'error');
+          this.updateSheetBanner();
+        }
+      });
       document.getElementById('btn-admin-reset-demo')?.addEventListener('click', () => {
         this.showConfirmModal(
           'Reset Demo Data?',
           'This will restore all default clinical cases and reset local result history. Are you sure you want to proceed?',
-          () => {
-            CaseRepository.resetToDemoData();
-            ResultRepository.clearHistory();
-            this.renderLibraryCases();
-            this.renderAdminCases();
-            this.renderMyResults();
-            this.showToast('Demo data restored successfully.', 'success');
+          async () => {
+            try {
+              await CaseRepository.resetToDemoData();
+              ResultRepository.clearHistory();
+              this.renderLibraryCases();
+              this.renderAdminCases();
+              this.renderMyResults();
+              const where = CaseRepository.isGoogle() ? 'Google Sheet' : 'this browser';
+              this.showToast(`Demo cases restored to the ${where}.`, 'success');
+            } catch (err) {
+              this.showToast(err.message || 'Could not reset cases.', 'error');
+            }
           }
         );
       });
@@ -3301,7 +3687,7 @@
     // Library Rendering
     // ------------------------------------------------------------------------
     renderLibrary() {
-      const cases = CaseRepository.getAll();
+      const cases = CaseRepository.learnerCases();
       const countEl = document.getElementById('library-case-count');
       if (countEl) countEl.textContent = `${cases.length} Clinical Scenarios`;
 
@@ -3339,7 +3725,7 @@
       const grid = document.getElementById('case-cards-grid');
       if (!grid) return;
 
-      const allCases = CaseRepository.getAll();
+      const allCases = CaseRepository.learnerCases();
       const history = ResultRepository.getAll();
 
       const filtered = allCases.filter(c => {
@@ -3362,7 +3748,9 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
             <div class="empty-state-title">No Clinical Cases Found</div>
-            <div class="empty-state-desc">Try clearing your search query or selecting a different specialty category.</div>
+            <div class="empty-state-desc">${CaseRepository.isGoogle() && CaseRepository.getAll().length === 0
+              ? 'The Google Sheet does not have any published cases yet. Add or import a case in Case Manager and it will show up here.'
+              : 'Try clearing your search query or selecting a different specialty category.'}</div>
           </div>
         `;
         return;
@@ -3691,7 +4079,7 @@
       });
     },
 
-    handleDiagnosisSubmit() {
+    async handleDiagnosisSubmit() {
       const input = document.getElementById('game-diagnosis-input');
       if (!input) return;
 
@@ -3705,7 +4093,17 @@
         return;
       }
 
-      const outcome = GameEngine.submitDiagnosis(userVal);
+      const btnSubmit = document.getElementById('btn-submit-diagnosis');
+      if (btnSubmit) btnSubmit.disabled = true;
+      let outcome;
+      try {
+        outcome = await GameEngine.submitDiagnosis(userVal);
+      } catch (err) {
+        if (btnSubmit) btnSubmit.disabled = false;
+        this.showToast(err.message || 'Could not check that answer.', 'error');
+        return;
+      }
+      if (btnSubmit) btnSubmit.disabled = false;
       const state = outcome.state;
 
       const banner = document.getElementById('game-feedback-banner');
@@ -3727,7 +4125,6 @@
       const feedbackDecisiveList = document.getElementById('feedback-decisive-list');
       const feedbackAction = document.getElementById('feedback-action-container');
 
-      const btnSubmit = document.getElementById('btn-submit-diagnosis');
       const btnShowAns = document.getElementById('btn-show-answer');
       const btnCont = document.getElementById('btn-continue-stage');
       const btnShowComp = document.getElementById('btn-show-complete-answer');
@@ -3941,7 +4338,7 @@
       }
     },
     playNextCase() {
-      const all = CaseRepository.getAll();
+      const all = CaseRepository.learnerCases();
       if (!GameEngine.activeCase || all.length <= 1) {
         window.location.hash = '#library';
         return;
@@ -4694,8 +5091,33 @@
         container.appendChild(card);
       });
     },
+    updateSheetBanner() {
+      const el = document.getElementById('admin-sheet-status');
+      if (!el) return;
+      if (!CaseRepository.isGoogle()) {
+        el.textContent = 'Local mode is on. Changes stay in this browser until you switch to Google Sheets.';
+        return;
+      }
+      const count = CaseRepository.getAll().length;
+      if (GoogleSheetsCaseRepository.lastError) {
+        el.textContent = `Google Sheet could not be reached (${GoogleSheetsCaseRepository.lastError}). Showing the last downloaded cases.`;
+        return;
+      }
+      const when = GoogleSheetsCaseRepository.lastSyncedAt
+        ? new Date(GoogleSheetsCaseRepository.lastSyncedAt).toLocaleString()
+        : 'just now';
+      let text = `Google Sheet connected · ${count} case${count === 1 ? '' : 's'} · last sync ${when}. Edits, imports, and deletes are written to the sheet.`;
+      if (!GoogleSheetsCaseRepository.adminKey()) {
+        text += ' Add the administrator key in Settings before saving.';
+      } else if (/UNAUTHORIZED/i.test(GoogleSheetsCaseRepository.adminError || '')) {
+        text += ' The administrator key was rejected. Update it in Settings.';
+      }
+      el.textContent = text;
+    },
+
     renderAdminCases() {
       AdminManager.renderTable();
+      this.updateSheetBanner();
     },
 
     // ------------------------------------------------------------------------
@@ -5159,7 +5581,7 @@
 
       return caseObj;
     },
-    saveCaseFromEditor(skipDupCheck = false) {
+    async saveCaseFromEditor(skipDupCheck = false) {
       try {
         const caseObj = this.collectCaseFromEditor();
 
@@ -5179,13 +5601,15 @@
           }
         }
 
-        CaseRepository.save(caseObj);
+        await CaseRepository.save(caseObj);
         this.closeEditor();
         this.renderTable();
         AppUI.renderLibraryCases();
-        AppUI.showToast(`Case "${caseObj.id}" saved successfully!`, 'success');
+        AppUI.updateSheetBanner();
+        const where = CaseRepository.isGoogle() ? 'Google Sheet' : 'this browser';
+        AppUI.showToast(`Case "${caseObj.id}" saved to the ${where}.`, 'success');
       } catch (err) {
-        alert(`Validation Error: ${err.message}`);
+        alert(`Could not save case: ${err.message}`);
       }
     },
 
@@ -5305,12 +5729,14 @@
       URL.revokeObjectURL(url);
     },
 
-    duplicateCase(caseId) {
+    async duplicateCase(caseId) {
       try {
-        const dup = CaseRepository.duplicate(caseId);
+        const dup = await CaseRepository.duplicate(caseId);
         this.renderTable();
         AppUI.renderLibraryCases();
-        AppUI.showToast(`Duplicated into "${dup.id}".`, 'success');
+        AppUI.updateSheetBanner();
+        const where = CaseRepository.isGoogle() ? 'Google Sheet' : 'curriculum';
+        AppUI.showToast(`Duplicated into "${dup.id}" on the ${where}.`, 'success');
       } catch (err) {
         AppUI.showToast(err.message, 'error');
       }
@@ -5320,11 +5746,17 @@
       AppUI.showConfirmModal(
         `Delete Case ${caseId}?`,
         `Are you sure you want to permanently delete case ${caseId}? This action cannot be reversed.`,
-        () => {
-          CaseRepository.delete(caseId);
-          this.renderTable();
-          AppUI.renderLibraryCases();
-          AppUI.showToast(`Case ${caseId} deleted.`, 'info');
+        async () => {
+          try {
+            await CaseRepository.delete(caseId);
+            this.renderTable();
+            AppUI.renderLibraryCases();
+            AppUI.updateSheetBanner();
+            const where = CaseRepository.isGoogle() ? 'Google Sheet' : 'curriculum';
+            AppUI.showToast(`Case ${caseId} deleted from the ${where}.`, 'info');
+          } catch (err) {
+            AppUI.showToast(err.message, 'error');
+          }
         }
       );
     },
@@ -5453,13 +5885,22 @@
       }
 
       // Confirm Import
-      document.getElementById('btn-import-confirm')?.addEventListener('click', () => {
+      document.getElementById('btn-import-confirm')?.addEventListener('click', async () => {
         if (this.pendingImportCases.length > 0) {
-          const count = CaseRepository.commitImport(this.pendingImportCases);
-          this.closeImportModal();
-          this.renderTable();
-          AppUI.renderLibraryCases();
-          AppUI.showToast(`Successfully imported ${count} clinical case(s)!`, 'success');
+          const confirmBtn = document.getElementById('btn-import-confirm');
+          if (confirmBtn) confirmBtn.disabled = true;
+          try {
+            const count = await CaseRepository.commitImport(this.pendingImportCases);
+            this.closeImportModal();
+            this.renderTable();
+            AppUI.renderLibraryCases();
+            AppUI.updateSheetBanner();
+            const where = CaseRepository.isGoogle() ? 'Google Sheet' : 'curriculum';
+            AppUI.showToast(`Imported ${count} clinical case(s) to the ${where}.`, 'success');
+          } catch (err) {
+            if (confirmBtn) confirmBtn.disabled = false;
+            AppUI.showToast(err.message || 'Import failed.', 'error');
+          }
         }
       });
     },
@@ -5613,8 +6054,14 @@
       }
 
       if (commitBtn) {
-        commitBtn.addEventListener('click', () => {
-          this.commitImport();
+        commitBtn.addEventListener('click', async () => {
+          commitBtn.disabled = true;
+          try {
+            await this.commitImport();
+          } catch (err) {
+            commitBtn.disabled = false;
+            AppUI.showToast(err.message || 'Could not write cases to the Google Sheet.', 'error');
+          }
         });
       }
     },
@@ -5915,13 +6362,13 @@
       }
     },
 
-    commitImport() {
+    async commitImport() {
       const strategyEl = document.getElementById('import-duplicate-strategy');
       const strategy = strategyEl ? strategyEl.value : 'copy';
       const existingCases = CaseRepository.getAll();
       const existingIds = new Set(existingCases.map(c => String(c.id).toLowerCase()));
 
-      let importedCount = 0;
+      const toSave = [];
       this.pendingCases.forEach(c => {
         if (!c.id || !c.title) return;
         const diag = c.diagnosis ? (c.diagnosis.canonical || c.diagnosis.correctAnswer) : '';
@@ -5940,19 +6387,18 @@
             }
             c.id = copyId;
             c.title = `${c.title} (Copy)`;
-            CaseRepository.saveCase(c);
-            importedCount++;
+            toSave.push(c);
           } else if (strategy === 'replace') {
-            CaseRepository.saveCase(c);
-            importedCount++;
+            toSave.push(c);
           }
         } else {
-          CaseRepository.saveCase(c);
-          importedCount++;
+          toSave.push(c);
         }
       });
 
-      AppUI.showToast(`Successfully committed ${importedCount} cases to curriculum.`, 'success');
+      const importedCount = await CaseRepository.commitImport(toSave);
+      const where = CaseRepository.isGoogle() ? 'Google Sheet' : 'curriculum';
+      AppUI.showToast(`Committed ${importedCount} cases to the ${where}.`, 'success');
       AppUI.renderLibraryCases();
       AppUI.renderAdminCases();
       window.location.hash = '#library';
@@ -5981,6 +6427,8 @@
 
       const gasUrlInput = document.getElementById('settings-gas-url-input');
       if (gasUrlInput) gasUrlInput.value = config.googleAppsScript?.baseUrl || '';
+      const gasKeyInput = document.getElementById('settings-gas-admin-key');
+      if (gasKeyInput) gasKeyInput.value = config.googleAppsScript?.adminKey || '';
 
       const defLives = document.getElementById('settings-default-lives');
       const startScore = document.getElementById('settings-starting-score');
@@ -5993,14 +6441,42 @@
       if (pIdDisplay) pIdDisplay.textContent = PlayerService.getPlayerId();
     },
 
-    setDataMode(mode) {
+    async setDataMode(mode) {
       window.WISECASES_CONFIG.mode = mode;
+      window.WISECASES_CONFIG.modeLockedByUser = true;
       if (mode === 'google') {
         window.WISECASES_CONFIG.googleAppsScript.enabled = true;
       }
+      this.captureGasFields();
       this.persistConfig();
       this.updateModeUI(mode);
-      AppUI.showToast(`Data mode switched to ${mode === 'google' ? 'Google Sheets' : 'Local Mode'}.`, 'info');
+      try {
+        await CaseRepository.init();
+        AppUI.renderLibraryCases();
+        AppUI.renderAdminCases();
+        const count = CaseRepository.learnerCases().length;
+        if (mode === 'google') {
+          AppUI.showToast(`Google Sheets mode is on. Learners see ${count} published case${count === 1 ? '' : 's'} from the sheet.`, 'success');
+        } else {
+          AppUI.showToast('Local mode is on. Changes stay in this browser.', 'info');
+        }
+      } catch (err) {
+        AppUI.showToast(err.message || 'Could not switch data mode.', 'error');
+      }
+    },
+
+    captureGasFields() {
+      const urlInput = document.getElementById('settings-gas-url-input');
+      const keyInput = document.getElementById('settings-gas-admin-key');
+      if (!window.WISECASES_CONFIG.googleAppsScript) {
+        window.WISECASES_CONFIG.googleAppsScript = { enabled: true, baseUrl: '', adminKey: '' };
+      }
+      if (urlInput && urlInput.value.trim()) {
+        window.WISECASES_CONFIG.googleAppsScript.baseUrl = urlInput.value.trim();
+      }
+      if (keyInput) {
+        window.WISECASES_CONFIG.googleAppsScript.adminKey = keyInput.value.trim();
+      }
     },
 
     updateModeUI(mode) {
@@ -6081,12 +6557,17 @@
         AppUI.showConfirmModal(
           'Reset Curriculum to Official Demo Cases?',
           'This will purge any custom imported cases and restore CASE-001 through CASE-006. Are you sure?',
-          () => {
-            CaseRepository.resetToDemoData();
-            ResultRepository.clearHistory();
-            AppUI.renderLibraryCases();
-            AppUI.renderAdminCases();
-            AppUI.showToast('Demo curriculum restored.', 'success');
+          async () => {
+            try {
+              await CaseRepository.resetToDemoData();
+              ResultRepository.clearHistory();
+              AppUI.renderLibraryCases();
+              AppUI.renderAdminCases();
+              const where = CaseRepository.isGoogle() ? 'Google Sheet' : 'this browser';
+              AppUI.showToast(`Demo curriculum restored to the ${where}.`, 'success');
+            } catch (err) {
+              AppUI.showToast(err.message || 'Could not reset the curriculum.', 'error');
+            }
           }
         );
       });
@@ -6104,8 +6585,13 @@
         return;
       }
 
+      this.captureGasFields();
+      window.WISECASES_CONFIG.mode = 'google';
+      window.WISECASES_CONFIG.modeLockedByUser = true;
+      window.WISECASES_CONFIG.googleAppsScript.enabled = true;
       window.WISECASES_CONFIG.googleAppsScript.baseUrl = url;
       this.persistConfig();
+      this.updateModeUI('google');
 
       if (wrap) wrap.style.display = 'block';
       if (badge) { badge.textContent = 'TESTING...'; badge.className = 'badge badge-neutral'; }
@@ -6117,9 +6603,26 @@
         const data = await res.json();
 
         if (data && data.success) {
+          let caseCount = null;
+          try {
+            await CaseRepository.init();
+            caseCount = CaseRepository.getAll().length;
+            AppUI.renderLibraryCases();
+            AppUI.renderAdminCases();
+          } catch (loadErr) {
+            console.warn('Sheet case reload failed after health check:', loadErr);
+          }
           if (badge) { badge.textContent = 'CONNECTED ✓'; badge.className = 'badge badge-green'; }
-          if (diagBox) diagBox.textContent = JSON.stringify(data, null, 2);
-          AppUI.showToast('Successfully connected to Google Apps Script backend!', 'success');
+          const summary = caseCount === null
+            ? data
+            : Object.assign({}, data, { publishedCaseCount: caseCount });
+          if (diagBox) diagBox.textContent = JSON.stringify(summary, null, 2);
+          AppUI.showToast(
+            caseCount === null
+              ? 'Connected to Google Apps Script.'
+              : `Connected. The sheet currently has ${caseCount} case${caseCount === 1 ? '' : 's'}.`,
+            'success'
+          );
         } else {
           if (badge) { badge.textContent = 'CONNECTION FAILED ✕'; badge.className = 'badge badge-red'; }
           if (diagBox) diagBox.textContent = JSON.stringify(data, null, 2);
@@ -6174,6 +6677,10 @@
       await ConditionRepository.init();
       ResultRepository.init();
       AppUI.init();
+      AppUI.updateSheetBanner();
+      if (CaseRepository.isGoogle() && GoogleSheetsCaseRepository.lastError) {
+        AppUI.showToast('Could not reach the Google Sheet. ' + GoogleSheetsCaseRepository.lastError, 'error');
+      }
       AdminManager.init();
       ImportCenter.init();
       SettingsManager.init();
