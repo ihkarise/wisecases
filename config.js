@@ -7,14 +7,18 @@
  */
 (function() {
   window.WISECASES_CONFIG = {
-    // Operational mode: "local" (in-browser JSON/localStorage) or "google" (Google Apps Script Web App)
-    mode: "local",
+    // Operational mode: "google" (Google Apps Script Web App) is the primary source of cases.
+    // "local" keeps everything in this browser only.
+    mode: "google",
 
     // Google Apps Script Web App connection settings
     googleAppsScript: {
       enabled: true,
-      baseUrl: "https://script.google.com/macros/s/AKfycbx1TWEOFmV3q0PBvAAiJEcs8UYRqujYrKzmJT6trwXS8a7hf6kWSfg4a193xzUb5JKC/exec", // e.g. "https://script.google.com/macros/s/AKfycbx.../exec"
-      timeoutMs: 12000
+      baseUrl: "https://script.google.com/macros/s/AKfycbx1TWEOFmV3q0PBvAAiJEcs8UYRqujYrKzmJT6trwXS8a7hf6kWSfg4a193xzUb5JKC/exec",
+      // Administrator key lives in Apps Script Script Properties. It is entered in Settings
+      // and kept in this browser only — never committed here.
+      adminKey: "",
+      timeoutMs: 20000
     },
 
     // Feature availability toggles
@@ -52,9 +56,13 @@
       if (savedConfig) {
         const parsed = JSON.parse(savedConfig);
         if (parsed && typeof parsed === 'object') {
-          if (parsed.mode) window.WISECASES_CONFIG.mode = parsed.mode;
+          // Only honor a saved mode after the user explicitly picks one in Settings.
+          // Older sessions stored "local" by default and would otherwise hide sheet updates.
+          if (parsed.modeLockedByUser && parsed.mode) window.WISECASES_CONFIG.mode = parsed.mode;
           if (parsed.googleAppsScript) {
-            window.WISECASES_CONFIG.googleAppsScript = Object.assign({}, window.WISECASES_CONFIG.googleAppsScript, parsed.googleAppsScript);
+            const merged = Object.assign({}, window.WISECASES_CONFIG.googleAppsScript, parsed.googleAppsScript);
+            if (!merged.baseUrl) merged.baseUrl = window.WISECASES_CONFIG.googleAppsScript.baseUrl;
+            window.WISECASES_CONFIG.googleAppsScript = merged;
           }
           if (parsed.player) {
             window.WISECASES_CONFIG.player = Object.assign({}, window.WISECASES_CONFIG.player, parsed.player);
