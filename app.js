@@ -1837,6 +1837,187 @@
   // ==========================================================================
   const ConditionRepository = {
     _conditions: [],
+    _catalog: [],
+    _ready: false,
+    CATALOG_KEY: 'wisecases_condition_catalog_v1',
+
+    _norm(value) {
+      return String(value || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    },
+
+    _core(label) {
+      return String(label || '')
+        .replace(/\([^)]*\)/g, ' ')
+        .split(/\b(?:associated with|secondary to|due to)\b/i)[0]
+        .replace(/\s+/g, ' ')
+        .trim();
+    },
+
+    _parenAliases(label) {
+      const out = [];
+      const re = /\(([^)]+)\)/g;
+      let match;
+      const text = String(label || '');
+      while ((match = re.exec(text))) {
+        match[1].split(/[/|,]/).forEach(part => {
+          const token = part.trim();
+          if (token.length >= 2 && token.length <= 48) out.push(token);
+        });
+      }
+      return out;
+    },
+
+    _sameDx(a, b) {
+      const left = this._norm(this._core(a));
+      const right = this._norm(this._core(b));
+      return Boolean(left) && left === right;
+    },
+
+    _pushUnique(list, value, primary) {
+      const token = String(value || '').trim();
+      if (!token) return;
+      if (primary && this._norm(token) === this._norm(primary)) return;
+      if (list.some(item => this._norm(item) === this._norm(token))) return;
+      list.push(token);
+    },
+
+    _pickSelectable(canonical, accepted) {
+      const core = this._core(canonical);
+      const coreNorm = this._norm(core);
+      const exact = accepted.find(answer => this._norm(answer) === coreNorm);
+      if (exact) return exact;
+      const prefix = accepted
+        .filter(answer => {
+          const normalized = this._norm(answer);
+          return coreNorm.startsWith(normalized + ' ') || normalized.startsWith(coreNorm + ' ');
+        })
+        .sort((a, b) => this._norm(b).length - this._norm(a).length)[0];
+      if (prefix) return prefix;
+      const multi = accepted
+        .filter(answer => this._norm(answer).split(' ').length >= 2)
+        .sort((a, b) => b.length - a.length)[0];
+      return multi || accepted[0] || core || String(canonical || '').trim();
+    },
+
+    _rememberCatalog(name, labels, meta) {
+      const key = this._norm(this._core(name));
+      if (!key) return;
+      const entry = {
+        name,
+        aliases: [],
+        specialty: meta.specialty || '',
+        category: meta.category || ''
+      };
+      labels.forEach(label => this._pushUnique(entry.aliases, label, name));
+      labels.forEach(label => this._parenAliases(label).forEach(alias => this._pushUnique(entry.aliases, alias, name)));
+      const idx = this._catalog.findIndex(item => this._norm(this._core(item.name)) === key);
+      if (idx >= 0) {
+        const prev = this._catalog[idx];
+        (prev.aliases || []).forEach(alias => this._pushUnique(entry.aliases, alias, name));
+        if (prev.name && !this._sameDx(prev.name, name)) this._pushUnique(entry.aliases, prev.name, name);
+        if (!entry.specialty) entry.specialty = prev.specialty || '';
+        this._catalog[idx] = entry;
+      } else {
+        this._catalog.push(entry);
+      }
+    },
+
+    _persistCatalog() {
+      StorageService.set(this.CATALOG_KEY, this._catalog);
+    },
+
+    upsertFromCase(name, aliases, meta) {
+      const labels = [name].concat(aliases || []).map(item => String(item || '').trim()).filter(Boolean);
+      const primary = String(name || labels[0] || '').trim();
+      if (!primary || this._norm(primary).length < 3) return null;
+      const found = this._conditions.find(condition =>
+        labels.some(label =>
+          this._sameDx(label, condition.name) ||
+          (condition.aliases || []).some(alias => this._sameDx(label, alias))
+        )
+      );
+      if (found) {
+        found.aliases = found.aliases || [];
+        labels.forEach(label => this._pushUnique(found.aliases, label, found.name));
+        labels.forEach(label => this._parenAliases(label).forEach(alias => this._pushUnique(found.aliases, alias, found.name)));
+        if (!found.specialty && meta.specialty) found.specialty = meta.specialty;
+        this._rememberCatalog(found.name, labels.concat(primary), meta);
+        return found;
+      }
+      const aliasList = [];
+      labels.forEach(label => this._pushUnique(aliasList, label, primary));
+      labels.forEach(label => this._parenAliases(label).forEach(alias => this._pushUnique(aliasList, alias, primary)));
+      const created = {
+        id: 'CASE-' + this._norm(primary).replace(/\s+/g, '-').slice(0, 60),
+        name: primary,
+        aliases: aliasList,
+        keywords: this._norm(primary).split(' ').filter(word => word.length > 3),
+        specialty: meta.specialty || 'Clinical Diagnosis',
+        category: meta.category || 'Medicine',
+        source: 'case'
+      };
+      this._conditions.push(created);
+      this._rememberCatalog(primary, labels, meta);
+      return created;
+    },
+
+    _diagnosesFromClues(caseObj) {
+      const found = [];
+      (caseObj.stages || []).forEach(stage => {
+        const text = String(stage.clue || '');
+        const re = /(?:^|[.\n;])\s*(?:final\s+diagnosis|diagnosis)\s*:\s*([^.\n]+)/gi;
+        let match;
+        while ((match = re.exec(text))) {
+          const phrase = match[1].replace(/\s+/g, ' ').trim();
+          if (phrase.length >= 3 && phrase.length <= 180) found.push(phrase);
+        }
+      });
+      return found;
+    },
+
+    _specialty(caseObj) {
+      return String(caseObj.subcategory || caseObj.category || '').split('/')[0].trim() || 'Clinical Diagnosis';
+    },
+
+    _registerCase(caseObj) {
+      if (!caseObj) return;
+      const meta = { specialty: this._specialty(caseObj), category: caseObj.category || 'Medicine' };
+      const dx = caseObj.diagnosis || {};
+      const canonical = dx.canonical || dx.correctAnswer || dx.primary || dx.displayName || dx.name || '';
+      const accepted = []
+        .concat(Array.isArray(dx.acceptedAnswers) ? dx.acceptedAnswers : [])
+        .concat(Array.isArray(dx.aliases) ? dx.aliases : [])
+        .map(item => String(item || '').trim())
+        .filter(Boolean);
+      if (String(canonical).trim() || accepted.length) {
+        const selectable = this._pickSelectable(canonical, accepted);
+        this.upsertFromCase(selectable, [canonical, dx.correctAnswer, dx.primary, dx.displayName].concat(accepted), meta);
+      } else {
+        this._diagnosesFromClues(caseObj).forEach(phrase => {
+          const beforeParen = String(phrase).split('(')[0].trim();
+          const core = (beforeParen.split(/\s+/).length >= 2 ? beforeParen : (this._core(phrase) || phrase));
+          this.upsertFromCase(core, [phrase, this._core(phrase)].concat(this._parenAliases(phrase)), meta);
+        });
+      }
+      (caseObj.differentialDiagnoses || []).forEach(item => {
+        if (!item) return;
+        if (typeof item === 'string') {
+          this.upsertFromCase(this._core(item) || item, [item], meta);
+          return;
+        }
+        const name = item.diagnosis || item.name || item.label || '';
+        if (!name) return;
+        this.upsertFromCase(this._core(name) || name, [name].concat(item.aliases || []), meta);
+      });
+    },
+
+    syncFromCases(cases) {
+      if (!this._ready) return 0;
+      const before = this._conditions.length;
+      (Array.isArray(cases) ? cases : []).forEach(item => this._registerCase(item));
+      this._persistCatalog();
+      return this._conditions.length - before;
+    },
 
     async init() {
       this._conditions = JSON.parse(JSON.stringify(DEFAULT_SEED_CONDITIONS));
@@ -1851,6 +2032,18 @@
         } catch (e) {
           console.info('[ConditionRepository] Using embedded seed conditions.');
         }
+      }
+      const saved = StorageService.get(this.CATALOG_KEY, []);
+      this._catalog = Array.isArray(saved) ? saved : [];
+      this._ready = true;
+      this._catalog.slice().forEach(entry => {
+        this.upsertFromCase(entry.name, entry.aliases || [], {
+          specialty: entry.specialty,
+          category: entry.category
+        });
+      });
+      if (typeof CaseRepository !== 'undefined' && CaseRepository.getAll) {
+        this.syncFromCases(CaseRepository.getAll());
       }
       return this._conditions;
     },
@@ -2440,6 +2633,9 @@
       this.lastError = '';
       this.lastSyncedAt = new Date().toISOString();
       StorageService.set('wisecases_sheet_cache_v1', cases);
+      if (typeof ConditionRepository !== 'undefined' && ConditionRepository._ready) {
+        ConditionRepository.syncFromCases(cases);
+      }
       return cases;
     },
 
@@ -2593,6 +2789,9 @@
     },
 
     async commitImport(validCases) {
+      if (typeof ConditionRepository !== 'undefined') {
+        ConditionRepository.syncFromCases(validCases);
+      }
       const count = await this.bulkImport(validCases);
       try {
         await this.reload();
@@ -2643,6 +2842,10 @@
         totalCases: this._cases.length,
         cases: this._cases
       }, null, 2);
+    },
+
+    async revealAnswer(caseId) {
+      return await this._request('revealAnswer', { caseId, id: caseId }, 'GET');
     },
 
     async startGame(caseId, playerId) {
@@ -2718,7 +2921,14 @@
     },
 
     saveCase(caseObj) {
-      return this.activeRepo.saveCase(caseObj);
+      const remember = (saved) => {
+        if (typeof ConditionRepository !== 'undefined') {
+          ConditionRepository.syncFromCases([saved || caseObj]);
+        }
+        return saved;
+      };
+      const result = this.activeRepo.saveCase(caseObj);
+      return result && typeof result.then === 'function' ? result.then(remember) : remember(result);
     },
 
     save(caseObj) {
@@ -2754,6 +2964,9 @@
     },
 
     commitImport(validCases) {
+      if (typeof ConditionRepository !== 'undefined') {
+        ConditionRepository.syncFromCases(validCases);
+      }
       return this.activeRepo.commitImport(validCases);
     },
 
@@ -2956,6 +3169,24 @@
         .trim();
     },
 
+    answerIsSpecific(submitted, matchedCondition) {
+      const user = this.normalizeString(submitted);
+      const matched = this.normalizeString(matchedCondition);
+      if (!user || !matched) return false;
+      if (user === matched) return true;
+
+      const raw = String(matchedCondition || '');
+      const parenAliases = [];
+      const paren = raw.match(/\(([^)]+)\)/g) || [];
+      paren.forEach(part => parenAliases.push(this.normalizeString(part.replace(/[()]/g, ''))));
+      if (parenAliases.includes(user)) return true;
+
+      const head = this.normalizeString(raw.split(/\bwith\b/i)[0] || '');
+      const userWords = user.split(' ').filter(Boolean);
+      if (head && userWords.length >= 2 && (head === user || head.endsWith(' ' + user))) return true;
+      return false;
+    },
+
     checkAnswerMatch(userAnswer) {
       const normalizedUser = this.normalizeString(userAnswer);
       if (!normalizedUser || !this.activeCase) return false;
@@ -2986,19 +3217,51 @@
 
       this._remoteLives = null;
       this._remoteScore = null;
-      const hasLocalKey = Boolean(this.activeCase?.diagnosis?.correctAnswer || this.activeCase?.diagnosis?.primary);
       let isMatch = false;
-      if (this._remoteSessionId && !hasLocalKey) {
-        const remote = await GoogleSheetsCaseRepository.submitAnswer(
-          this._remoteSessionId,
-          trimmedAnswer,
-          this.currentStageIndex + 1
-        );
-        isMatch = Boolean(remote && (remote.correct === true || remote.isCorrect === true || remote.status === 'CORRECT' || remote.outcome === 'correct'));
-        this._remoteLives = (remote && typeof remote.livesRemaining === 'number') ? remote.livesRemaining : null;
-        this._remoteScore = (remote && typeof remote.score === 'number') ? remote.score : null;
-        if (remote && remote.correctAnswer && !this.activeCase.diagnosis) {
-          this.activeCase.diagnosis = { correctAnswer: remote.correctAnswer, acceptedAnswers: [remote.correctAnswer] };
+      let remote = null;
+      if (this._remoteSessionId && !this.isPreview) {
+        try {
+          remote = await GoogleSheetsCaseRepository.submitAnswer(
+            this._remoteSessionId,
+            trimmedAnswer,
+            this.currentStageIndex + 1
+          );
+        } catch (err) {
+          if (/SESSION_COMPLETED/i.test(err.message || '') && this.isWon) {
+            return { status: 'FINISHED', state: this.getState() };
+          }
+          remote = null;
+        }
+      }
+
+      if (remote) {
+        const remoteStatus = String(remote.status || remote.outcome || '').toUpperCase();
+        const serverSaysCorrect = remoteStatus === 'CORRECT' || remote.correct === true || remote.isCorrect === true || remote.isWon === true;
+        isMatch = serverSaysCorrect && this.answerIsSpecific(trimmedAnswer, remote.matchedCondition || remote.correctAnswer || '');
+        if (isMatch || !serverSaysCorrect) {
+          this._remoteLives = (typeof remote.livesRemaining === 'number') ? remote.livesRemaining : null;
+          this._remoteScore = (typeof remote.score === 'number') ? remote.score : null;
+        }
+        if (isMatch && remote.completeCase && typeof remote.completeCase === 'object') {
+          const full = remote.completeCase;
+          if (full.diagnosis) this.activeCase.diagnosis = full.diagnosis;
+          if (full.explanation) this.activeCase.explanation = full.explanation;
+          if (Array.isArray(full.learningPoints)) {
+            this.activeCase.explanation = Object.assign({}, this.activeCase.explanation, {
+              learningPoints: full.learningPoints
+            });
+          }
+          if (Array.isArray(full.references)) this.activeCase.references = full.references;
+        }
+        if (isMatch && remote.whyCorrect) {
+          this.activeCase.diagnosis = Object.assign({}, this.activeCase.diagnosis, {
+            detailedExplanation: this.activeCase.diagnosis?.detailedExplanation || remote.whyCorrect
+          });
+        }
+        if (isMatch && Array.isArray(remote.decisiveFindings)) {
+          this.activeCase.diagnosis = Object.assign({}, this.activeCase.diagnosis, {
+            decisiveFindings: remote.decisiveFindings
+          });
         }
       } else {
         isMatch = this.checkAnswerMatch(trimmedAnswer);
@@ -3373,6 +3636,28 @@
   // ==========================================================================
   // 6. UI VIEW MANAGER & APPLICATION CONTROLLER
   // ==========================================================================
+  function learnerSpecialty(caseObj) {
+    const sub = String(caseObj?.subcategory || '').split('/')[0].trim();
+    if (sub) return sub;
+    return String(caseObj?.category || 'Clinical Case').trim();
+  }
+
+  function learnerStageTitle(stage, index) {
+    const raw = String(stage?.title || '').trim();
+    const number = stage?.stage || index + 1;
+    if (!raw || /diagnos|final answer/i.test(raw)) return `Scenario ${number}`;
+    return raw;
+  }
+
+  function learnerClueText(clue, hideLabeledDiagnosis) {
+    const text = String(clue || '');
+    if (!hideLabeledDiagnosis) return text;
+    return text
+      .replace(/(^|[.\n;])(\s*)(?:final\s+diagnosis|diagnosis)\s*:\s*[^.\n]+[.]?/gi, (match, boundary) => boundary || '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
   const AppUI = {
     activeView: 'home',
     currentCategoryFilter: 'All',
@@ -3777,8 +4062,7 @@
             <h3 class="case-card-title">${c.title}</h3>
             
             <div class="case-meta-row">
-              <span class="badge badge-neutral">${c.category}</span>
-              ${c.subcategory ? `<span class="badge badge-neutral">${c.subcategory}</span>` : ''}
+              <span class="badge badge-neutral">${learnerSpecialty(c)}</span>
               <span class="badge badge-neutral">${c.difficulty || 'Progressive'}</span>
             </div>
 
@@ -3883,7 +4167,7 @@
       // Case Header & Demographics
       document.getElementById('game-case-id').textContent = currentCase.id;
       document.getElementById('game-case-title').textContent = currentCase.title;
-      document.getElementById('game-case-category').textContent = `${currentCase.category}${currentCase.subcategory ? ' / ' + currentCase.subcategory : ''}`;
+      document.getElementById('game-case-category').textContent = learnerSpecialty(currentCase);
       document.getElementById('game-patient-age').textContent = currentCase.patient?.age ? `${currentCase.patient.age} Yrs` : 'Not Specified';
       document.getElementById('game-patient-sex').textContent = currentCase.patient?.sex || 'Not Specified';
       document.getElementById('game-patient-summary').textContent = currentCase.patient?.summary || 'Progressive clinical examination protocol active.';
@@ -3900,9 +4184,9 @@
       // Attempts log
       this.renderGameAttemptsLog(state);
 
-      // Feedback banner reset or show
+      // Keep the wrong/correct banner on screen until the learner continues.
       const banner = document.getElementById('game-feedback-banner');
-      if (banner && !state.isFinished) {
+      if (banner && !state.isFinished && !this._inFeedbackState) {
         banner.className = 'feedback-banner';
         banner.style.display = 'none';
       }
@@ -3989,8 +4273,8 @@
             </span>
           </div>
 
-          <h3 class="clue-title">${stg.title}</h3>
-          <p class="clue-text">${stg.clue}</p>
+          <h3 class="clue-title">${learnerStageTitle(stg, idx)}</h3>
+          <p class="clue-text">${learnerClueText(stg.clue, !state.isFinished)}</p>
         `;
 
         container.appendChild(card);
@@ -4077,6 +4361,37 @@
         `;
         logList.appendChild(item);
       });
+    },
+
+    async openRevealedAnswer() {
+      const active = GameEngine.activeCase;
+      if (active && CaseRepository.isGoogle()) {
+        try {
+          const revealed = await GoogleSheetsCaseRepository.revealAnswer(active.id);
+          if (revealed && revealed.diagnosis) {
+            const diag = revealed.diagnosis;
+            active.diagnosis = Object.assign({}, diag, {
+              correctAnswer: diag.correctAnswer || diag.canonical || diag.primary || '',
+              primary: diag.primary || diag.canonical || diag.correctAnswer || ''
+            });
+          }
+          if (revealed && revealed.explanation) active.explanation = revealed.explanation;
+          if (revealed && Array.isArray(revealed.learningPoints)) {
+            active.explanation = Object.assign({}, active.explanation, {
+              learningPoints: revealed.learningPoints
+            });
+          }
+          if (revealed && Array.isArray(revealed.references)) active.references = revealed.references;
+        } catch (err) {
+          console.warn('The sheet has not enabled answer reveal yet:', err);
+        }
+      }
+      GameEngine.isFinished = true;
+      GameEngine.isWon = false;
+      if (active && Array.isArray(active.stages) && active.stages.length) {
+        GameEngine.currentStageIndex = active.stages.length - 1;
+      }
+      window.location.hash = '#result';
     },
 
     async handleDiagnosisSubmit() {
@@ -4239,7 +4554,7 @@
         if (btnShowComp) btnShowComp.style.display = 'none';
         if (btnShowAns) {
           btnShowAns.style.display = 'inline-flex';
-          btnShowAns.onclick = () => { window.location.hash = '#result'; };
+          btnShowAns.onclick = () => { this.openRevealedAnswer(); };
         }
 
         if (feedbackAction) {
@@ -4298,33 +4613,53 @@
         }
 
         // Button States: SHOW THE ANSWER (primary) & CONTINUE TO NEXT STAGE (secondary)
-        if (btnSubmit) btnSubmit.style.display = 'none';
+        if (btnSubmit) {
+          btnSubmit.style.display = 'inline-flex';
+          btnSubmit.classList.remove('btn-ai');
+          btnSubmit.classList.add('btn-secondary');
+        }
         if (btnShowComp) btnShowComp.style.display = 'none';
         if (btnShowAns) {
           btnShowAns.style.display = 'inline-flex';
-          btnShowAns.onclick = () => {
-            GameEngine.currentStageIndex = GameEngine.activeCase.stages.length - 1;
-            window.location.hash = '#result';
-          };
+          btnShowAns.onclick = () => { this.openRevealedAnswer(); };
         }
 
-        if (outcome.nextStageUnlocked && state.livesRemaining > 0) {
+        const moreStages = (state.currentStageIndex + 1 < state.totalStages) || outcome.nextStageUnlocked;
+        if (!(moreStages && state.livesRemaining > 0) && btnSubmit) {
+          btnSubmit.classList.remove('btn-secondary');
+          btnSubmit.classList.add('btn-ai');
+        }
+        if (moreStages && state.livesRemaining > 0) {
           if (btnCont) {
             btnCont.style.display = 'inline-flex';
+            btnCont.classList.remove('btn-secondary');
+            btnCont.classList.add('btn-ai');
             btnCont.onclick = () => {
+              if (!outcome.nextStageUnlocked && GameEngine.currentStageIndex + 1 < GameEngine.activeCase.stages.length) {
+                GameEngine.currentStageIndex += 1;
+              }
               this._inFeedbackState = false;
               if (banner) banner.style.display = 'none';
               input.value = '';
-              if (btnSubmit) btnSubmit.style.display = 'inline-flex';
+              input.disabled = false;
+              if (btnSubmit) {
+                btnSubmit.style.display = 'inline-flex';
+                btnSubmit.classList.remove('btn-secondary');
+                btnSubmit.classList.add('btn-ai');
+              }
               if (btnShowAns) btnShowAns.style.display = 'none';
-              if (btnCont) btnCont.style.display = 'none';
+              if (btnCont) {
+                btnCont.style.display = 'none';
+                btnCont.classList.remove('btn-ai');
+                btnCont.classList.add('btn-secondary');
+              }
               if (btnShowComp) btnShowComp.style.display = 'none';
               this.renderGame();
               input.focus();
             };
           }
-        } else {
-          if (btnCont) btnCont.style.display = 'none';
+        } else if (btnCont) {
+          btnCont.style.display = 'none';
         }
 
         if (feedbackAction) feedbackAction.innerHTML = '';
@@ -4435,6 +4770,18 @@
         }
         if (explanationHeading) explanationHeading.textContent = 'Why The Diagnosis Was Made';
         if (learningHeading) learningHeading.textContent = 'Key Learning Points & Takeaways';
+      } else if (state.livesRemaining > 0) {
+        if (statusBadge) {
+          statusBadge.className = 'badge badge-neutral';
+          statusBadge.innerHTML = 'ANSWER REVEALED';
+        }
+        if (diagLabel) diagLabel.textContent = 'THE DIAGNOSIS WAS:';
+        if (stagePill) {
+          stagePill.className = 'badge badge-neutral';
+          stagePill.textContent = 'You opened the answer before the case was solved.';
+        }
+        if (explanationHeading) explanationHeading.textContent = 'Why The Diagnosis Was Made';
+        if (learningHeading) learningHeading.textContent = 'What You Should Remember';
       } else {
         if (statusBadge) {
           statusBadge.className = 'badge badge-red';
@@ -4468,7 +4815,7 @@
         patientEl.innerHTML = `
           <p style="margin-bottom: 8px;"><strong>Patient:</strong> ${currentCase.patient?.age ? currentCase.patient.age + ' years old, ' : ''}${currentCase.patient?.sex || 'Patient'}.</p>
           <p style="margin-bottom: 8px;"><strong>Chief Presentation:</strong> ${currentCase.patient?.summary || currentCase.stages[0]?.clue || 'Initial presentation profile.'}</p>
-          <p style="color: var(--color-slate-gray); font-size: 14px;"><strong>Specialty Domain:</strong> ${currentCase.category} ${currentCase.subcategory ? '• ' + currentCase.subcategory : ''}</p>
+          <p style="color: var(--color-slate-gray); font-size: 14px;"><strong>Specialty Domain:</strong> ${learnerSpecialty(currentCase)}</p>
         `;
       }
 
@@ -6396,9 +6743,16 @@
         }
       });
 
+      const beforeOptions = ConditionRepository.getAll().length;
       const importedCount = await CaseRepository.commitImport(toSave);
+      const added = Math.max(0, ConditionRepository.getAll().length - beforeOptions);
       const where = CaseRepository.isGoogle() ? 'Google Sheet' : 'curriculum';
-      AppUI.showToast(`Committed ${importedCount} cases to the ${where}.`, 'success');
+      AppUI.showToast(
+        added
+          ? `Committed ${importedCount} cases to the ${where}. ${added} diagnosis option${added === 1 ? '' : 's'} added to Formulate Your Diagnosis.`
+          : `Committed ${importedCount} cases to the ${where}. Their diagnoses are in Formulate Your Diagnosis.`,
+        'success'
+      );
       AppUI.renderLibraryCases();
       AppUI.renderAdminCases();
       window.location.hash = '#library';

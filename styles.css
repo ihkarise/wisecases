@@ -1340,6 +1340,11 @@ a:hover {
   overflow-y: auto;
 }
 
+#btn-show-answer {
+  width: 100%;
+  margin-top: 12px;
+}
+
 .attempt-log-item {
   display: flex;
   align-items: center;
