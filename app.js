@@ -3285,8 +3285,10 @@
       if (remote) {
         const remoteStatus = String(remote.status || remote.outcome || '').toUpperCase();
         const serverSaysCorrect = remoteStatus === 'CORRECT' || remote.correct === true || remote.isCorrect === true || remote.isWon === true;
-        isMatch = serverSaysCorrect && this.answerIsSpecific(trimmedAnswer, remote.matchedCondition || remote.correctAnswer || '');
-        if (isMatch || !serverSaysCorrect) {
+        // The sheet already matches accepted answers exactly, including short names
+        // such as "Budd-Chiari Syndrome" against the longer canonical diagnosis.
+        isMatch = serverSaysCorrect;
+        if (serverSaysCorrect || remoteStatus === 'INCORRECT' || remoteStatus === 'WRONG') {
           this._remoteLives = (typeof remote.livesRemaining === 'number') ? remote.livesRemaining : null;
           this._remoteScore = (typeof remote.score === 'number') ? remote.score : null;
         }
@@ -3320,7 +3322,11 @@
       // Determine Canonical Matched Condition
       let matchedCondition = trimmedAnswer;
       if (isMatch) {
-        matchedCondition = this.activeCase.diagnosis?.primary || this.activeCase.diagnosis?.correctAnswer || trimmedAnswer;
+        matchedCondition = (remote && remote.matchedCondition)
+          || this.activeCase.diagnosis?.canonical
+          || this.activeCase.diagnosis?.primary
+          || this.activeCase.diagnosis?.correctAnswer
+          || trimmedAnswer;
       } else {
         const diffs = this.activeCase.differentialDiagnoses || [];
         const matchedDiff = diffs.find(d => {
