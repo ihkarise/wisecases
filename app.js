@@ -2645,6 +2645,10 @@
       }, null, 2);
     },
 
+    async revealAnswer(caseId) {
+      return await this._request('revealAnswer', { caseId, id: caseId }, 'GET');
+    },
+
     async startGame(caseId, playerId) {
       return await this._request('startGame', {
         caseId,
@@ -2956,6 +2960,24 @@
         .trim();
     },
 
+    answerIsSpecific(submitted, matchedCondition) {
+      const user = this.normalizeString(submitted);
+      const matched = this.normalizeString(matchedCondition);
+      if (!user || !matched) return false;
+      if (user === matched) return true;
+
+      const raw = String(matchedCondition || '');
+      const parenAliases = [];
+      const paren = raw.match(/\(([^)]+)\)/g) || [];
+      paren.forEach(part => parenAliases.push(this.normalizeString(part.replace(/[()]/g, ''))));
+      if (parenAliases.includes(user)) return true;
+
+      const head = this.normalizeString(raw.split(/\bwith\b/i)[0] || '');
+      const userWords = user.split(' ').filter(Boolean);
+      if (head && userWords.length >= 2 && (head === user || head.endsWith(' ' + user))) return true;
+      return false;
+    },
+
     checkAnswerMatch(userAnswer) {
       const normalizedUser = this.normalizeString(userAnswer);
       if (!normalizedUser || !this.activeCase) return false;
@@ -2986,19 +3008,51 @@
 
       this._remoteLives = null;
       this._remoteScore = null;
-      const hasLocalKey = Boolean(this.activeCase?.diagnosis?.correctAnswer || this.activeCase?.diagnosis?.primary);
       let isMatch = false;
-      if (this._remoteSessionId && !hasLocalKey) {
-        const remote = await GoogleSheetsCaseRepository.submitAnswer(
-          this._remoteSessionId,
-          trimmedAnswer,
-          this.currentStageIndex + 1
-        );
-        isMatch = Boolean(remote && (remote.correct === true || remote.isCorrect === true || remote.status === 'CORRECT' || remote.outcome === 'correct'));
-        this._remoteLives = (remote && typeof remote.livesRemaining === 'number') ? remote.livesRemaining : null;
-        this._remoteScore = (remote && typeof remote.score === 'number') ? remote.score : null;
-        if (remote && remote.correctAnswer && !this.activeCase.diagnosis) {
-          this.activeCase.diagnosis = { correctAnswer: remote.correctAnswer, acceptedAnswers: [remote.correctAnswer] };
+      let remote = null;
+      if (this._remoteSessionId && !this.isPreview) {
+        try {
+          remote = await GoogleSheetsCaseRepository.submitAnswer(
+            this._remoteSessionId,
+            trimmedAnswer,
+            this.currentStageIndex + 1
+          );
+        } catch (err) {
+          if (/SESSION_COMPLETED/i.test(err.message || '') && this.isWon) {
+            return { status: 'FINISHED', state: this.getState() };
+          }
+          remote = null;
+        }
+      }
+
+      if (remote) {
+        const remoteStatus = String(remote.status || remote.outcome || '').toUpperCase();
+        const serverSaysCorrect = remoteStatus === 'CORRECT' || remote.correct === true || remote.isCorrect === true || remote.isWon === true;
+        isMatch = serverSaysCorrect && this.answerIsSpecific(trimmedAnswer, remote.matchedCondition || remote.correctAnswer || '');
+        if (isMatch || !serverSaysCorrect) {
+          this._remoteLives = (typeof remote.livesRemaining === 'number') ? remote.livesRemaining : null;
+          this._remoteScore = (typeof remote.score === 'number') ? remote.score : null;
+        }
+        if (isMatch && remote.completeCase && typeof remote.completeCase === 'object') {
+          const full = remote.completeCase;
+          if (full.diagnosis) this.activeCase.diagnosis = full.diagnosis;
+          if (full.explanation) this.activeCase.explanation = full.explanation;
+          if (Array.isArray(full.learningPoints)) {
+            this.activeCase.explanation = Object.assign({}, this.activeCase.explanation, {
+              learningPoints: full.learningPoints
+            });
+          }
+          if (Array.isArray(full.references)) this.activeCase.references = full.references;
+        }
+        if (isMatch && remote.whyCorrect) {
+          this.activeCase.diagnosis = Object.assign({}, this.activeCase.diagnosis, {
+            detailedExplanation: this.activeCase.diagnosis?.detailedExplanation || remote.whyCorrect
+          });
+        }
+        if (isMatch && Array.isArray(remote.decisiveFindings)) {
+          this.activeCase.diagnosis = Object.assign({}, this.activeCase.diagnosis, {
+            decisiveFindings: remote.decisiveFindings
+          });
         }
       } else {
         isMatch = this.checkAnswerMatch(trimmedAnswer);
@@ -3373,6 +3427,19 @@
   // ==========================================================================
   // 6. UI VIEW MANAGER & APPLICATION CONTROLLER
   // ==========================================================================
+  function learnerSpecialty(caseObj) {
+    const sub = String(caseObj?.subcategory || '').split('/')[0].trim();
+    if (sub) return sub;
+    return String(caseObj?.category || 'Clinical Case').trim();
+  }
+
+  function learnerStageTitle(stage, index) {
+    const raw = String(stage?.title || '').trim();
+    const number = stage?.stage || index + 1;
+    if (!raw || /diagnos|final answer/i.test(raw)) return `Scenario ${number}`;
+    return raw;
+  }
+
   const AppUI = {
     activeView: 'home',
     currentCategoryFilter: 'All',
@@ -3777,8 +3844,7 @@
             <h3 class="case-card-title">${c.title}</h3>
             
             <div class="case-meta-row">
-              <span class="badge badge-neutral">${c.category}</span>
-              ${c.subcategory ? `<span class="badge badge-neutral">${c.subcategory}</span>` : ''}
+              <span class="badge badge-neutral">${learnerSpecialty(c)}</span>
               <span class="badge badge-neutral">${c.difficulty || 'Progressive'}</span>
             </div>
 
@@ -3883,7 +3949,7 @@
       // Case Header & Demographics
       document.getElementById('game-case-id').textContent = currentCase.id;
       document.getElementById('game-case-title').textContent = currentCase.title;
-      document.getElementById('game-case-category').textContent = `${currentCase.category}${currentCase.subcategory ? ' / ' + currentCase.subcategory : ''}`;
+      document.getElementById('game-case-category').textContent = learnerSpecialty(currentCase);
       document.getElementById('game-patient-age').textContent = currentCase.patient?.age ? `${currentCase.patient.age} Yrs` : 'Not Specified';
       document.getElementById('game-patient-sex').textContent = currentCase.patient?.sex || 'Not Specified';
       document.getElementById('game-patient-summary').textContent = currentCase.patient?.summary || 'Progressive clinical examination protocol active.';
@@ -3900,9 +3966,9 @@
       // Attempts log
       this.renderGameAttemptsLog(state);
 
-      // Feedback banner reset or show
+      // Keep the wrong/correct banner on screen until the learner continues.
       const banner = document.getElementById('game-feedback-banner');
-      if (banner && !state.isFinished) {
+      if (banner && !state.isFinished && !this._inFeedbackState) {
         banner.className = 'feedback-banner';
         banner.style.display = 'none';
       }
@@ -3989,7 +4055,7 @@
             </span>
           </div>
 
-          <h3 class="clue-title">${stg.title}</h3>
+          <h3 class="clue-title">${learnerStageTitle(stg, idx)}</h3>
           <p class="clue-text">${stg.clue}</p>
         `;
 
@@ -4077,6 +4143,37 @@
         `;
         logList.appendChild(item);
       });
+    },
+
+    async openRevealedAnswer() {
+      const active = GameEngine.activeCase;
+      if (active && CaseRepository.isGoogle()) {
+        try {
+          const revealed = await GoogleSheetsCaseRepository.revealAnswer(active.id);
+          if (revealed && revealed.diagnosis) {
+            const diag = revealed.diagnosis;
+            active.diagnosis = Object.assign({}, diag, {
+              correctAnswer: diag.correctAnswer || diag.canonical || diag.primary || '',
+              primary: diag.primary || diag.canonical || diag.correctAnswer || ''
+            });
+          }
+          if (revealed && revealed.explanation) active.explanation = revealed.explanation;
+          if (revealed && Array.isArray(revealed.learningPoints)) {
+            active.explanation = Object.assign({}, active.explanation, {
+              learningPoints: revealed.learningPoints
+            });
+          }
+          if (revealed && Array.isArray(revealed.references)) active.references = revealed.references;
+        } catch (err) {
+          console.warn('The sheet has not enabled answer reveal yet:', err);
+        }
+      }
+      GameEngine.isFinished = true;
+      GameEngine.isWon = false;
+      if (active && Array.isArray(active.stages) && active.stages.length) {
+        GameEngine.currentStageIndex = active.stages.length - 1;
+      }
+      window.location.hash = '#result';
     },
 
     async handleDiagnosisSubmit() {
@@ -4239,7 +4336,7 @@
         if (btnShowComp) btnShowComp.style.display = 'none';
         if (btnShowAns) {
           btnShowAns.style.display = 'inline-flex';
-          btnShowAns.onclick = () => { window.location.hash = '#result'; };
+          btnShowAns.onclick = () => { this.openRevealedAnswer(); };
         }
 
         if (feedbackAction) {
@@ -4298,33 +4395,53 @@
         }
 
         // Button States: SHOW THE ANSWER (primary) & CONTINUE TO NEXT STAGE (secondary)
-        if (btnSubmit) btnSubmit.style.display = 'none';
+        if (btnSubmit) {
+          btnSubmit.style.display = 'inline-flex';
+          btnSubmit.classList.remove('btn-ai');
+          btnSubmit.classList.add('btn-secondary');
+        }
         if (btnShowComp) btnShowComp.style.display = 'none';
         if (btnShowAns) {
           btnShowAns.style.display = 'inline-flex';
-          btnShowAns.onclick = () => {
-            GameEngine.currentStageIndex = GameEngine.activeCase.stages.length - 1;
-            window.location.hash = '#result';
-          };
+          btnShowAns.onclick = () => { this.openRevealedAnswer(); };
         }
 
-        if (outcome.nextStageUnlocked && state.livesRemaining > 0) {
+        const moreStages = (state.currentStageIndex + 1 < state.totalStages) || outcome.nextStageUnlocked;
+        if (!(moreStages && state.livesRemaining > 0) && btnSubmit) {
+          btnSubmit.classList.remove('btn-secondary');
+          btnSubmit.classList.add('btn-ai');
+        }
+        if (moreStages && state.livesRemaining > 0) {
           if (btnCont) {
             btnCont.style.display = 'inline-flex';
+            btnCont.classList.remove('btn-secondary');
+            btnCont.classList.add('btn-ai');
             btnCont.onclick = () => {
+              if (!outcome.nextStageUnlocked && GameEngine.currentStageIndex + 1 < GameEngine.activeCase.stages.length) {
+                GameEngine.currentStageIndex += 1;
+              }
               this._inFeedbackState = false;
               if (banner) banner.style.display = 'none';
               input.value = '';
-              if (btnSubmit) btnSubmit.style.display = 'inline-flex';
+              input.disabled = false;
+              if (btnSubmit) {
+                btnSubmit.style.display = 'inline-flex';
+                btnSubmit.classList.remove('btn-secondary');
+                btnSubmit.classList.add('btn-ai');
+              }
               if (btnShowAns) btnShowAns.style.display = 'none';
-              if (btnCont) btnCont.style.display = 'none';
+              if (btnCont) {
+                btnCont.style.display = 'none';
+                btnCont.classList.remove('btn-ai');
+                btnCont.classList.add('btn-secondary');
+              }
               if (btnShowComp) btnShowComp.style.display = 'none';
               this.renderGame();
               input.focus();
             };
           }
-        } else {
-          if (btnCont) btnCont.style.display = 'none';
+        } else if (btnCont) {
+          btnCont.style.display = 'none';
         }
 
         if (feedbackAction) feedbackAction.innerHTML = '';
@@ -4435,6 +4552,18 @@
         }
         if (explanationHeading) explanationHeading.textContent = 'Why The Diagnosis Was Made';
         if (learningHeading) learningHeading.textContent = 'Key Learning Points & Takeaways';
+      } else if (state.livesRemaining > 0) {
+        if (statusBadge) {
+          statusBadge.className = 'badge badge-neutral';
+          statusBadge.innerHTML = 'ANSWER REVEALED';
+        }
+        if (diagLabel) diagLabel.textContent = 'THE DIAGNOSIS WAS:';
+        if (stagePill) {
+          stagePill.className = 'badge badge-neutral';
+          stagePill.textContent = 'You opened the answer before the case was solved.';
+        }
+        if (explanationHeading) explanationHeading.textContent = 'Why The Diagnosis Was Made';
+        if (learningHeading) learningHeading.textContent = 'What You Should Remember';
       } else {
         if (statusBadge) {
           statusBadge.className = 'badge badge-red';
@@ -4468,7 +4597,7 @@
         patientEl.innerHTML = `
           <p style="margin-bottom: 8px;"><strong>Patient:</strong> ${currentCase.patient?.age ? currentCase.patient.age + ' years old, ' : ''}${currentCase.patient?.sex || 'Patient'}.</p>
           <p style="margin-bottom: 8px;"><strong>Chief Presentation:</strong> ${currentCase.patient?.summary || currentCase.stages[0]?.clue || 'Initial presentation profile.'}</p>
-          <p style="color: var(--color-slate-gray); font-size: 14px;"><strong>Specialty Domain:</strong> ${currentCase.category} ${currentCase.subcategory ? '• ' + currentCase.subcategory : ''}</p>
+          <p style="color: var(--color-slate-gray); font-size: 14px;"><strong>Specialty Domain:</strong> ${learnerSpecialty(currentCase)}</p>
         `;
       }
 
