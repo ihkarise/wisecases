@@ -1835,6 +1835,19 @@
   // ==========================================================================
   // 2C. CONDITION REPOSITORY (Clinical Autocomplete & Inventory Engine)
   // ==========================================================================
+  const SHEET_CANONICAL_DIAGNOSES = [
+    'Definite Autoimmune Hepatitis (AIH) with Ishak Stage 4 Bridging Fibrosis, Secondary Portal Hypertension (Hypersplenism), and Co-existing Grade II Steatosis (NAFLD)',
+    'Budd-Chiari Syndrome (Hepatic Venous Outflow Obstruction)',
+    'Primary Sclerosing Cholangitis (PSC) with Ulcerative Colitis',
+    'Primary Biliary Cholangitis (PBC)',
+    'Hereditary Hemochromatosis (HFE C282Y Homozygosity)',
+    'Definite Autoimmune Hepatitis (AIH) Type 1',
+    'Alpha-1 Antitrypsin Deficiency (SERPINA1 PiZZ Phenotype)',
+    'Hepatic Sinusoidal Obstruction Syndrome (SOS / Veno-Occlusive Disease)',
+    'Acute Fatty Liver of Pregnancy (AFLP)',
+    'Gilbert Syndrome'
+  ];
+
   const ConditionRepository = {
     _conditions: [],
     _catalog: [],
@@ -1868,8 +1881,8 @@
     },
 
     _sameDx(a, b) {
-      const left = this._norm(this._core(a));
-      const right = this._norm(this._core(b));
+      const left = this._norm(a);
+      const right = this._norm(b);
       return Boolean(left) && left === right;
     },
 
@@ -1900,7 +1913,7 @@
     },
 
     _rememberCatalog(name, labels, meta) {
-      const key = this._norm(this._core(name));
+      const key = this._norm(name);
       if (!key) return;
       const entry = {
         name,
@@ -1910,11 +1923,11 @@
       };
       labels.forEach(label => this._pushUnique(entry.aliases, label, name));
       labels.forEach(label => this._parenAliases(label).forEach(alias => this._pushUnique(entry.aliases, alias, name)));
-      const idx = this._catalog.findIndex(item => this._norm(this._core(item.name)) === key);
+      const idx = this._catalog.findIndex(item => this._norm(item.name) === key);
       if (idx >= 0) {
         const prev = this._catalog[idx];
         (prev.aliases || []).forEach(alias => this._pushUnique(entry.aliases, alias, name));
-        if (prev.name && !this._sameDx(prev.name, name)) this._pushUnique(entry.aliases, prev.name, name);
+        if (prev.name && this._norm(prev.name) !== key) this._pushUnique(entry.aliases, prev.name, name);
         if (!entry.specialty) entry.specialty = prev.specialty || '';
         this._catalog[idx] = entry;
       } else {
@@ -1930,17 +1943,13 @@
       const labels = [name].concat(aliases || []).map(item => String(item || '').trim()).filter(Boolean);
       const primary = String(name || labels[0] || '').trim();
       if (!primary || this._norm(primary).length < 3) return null;
-      const found = this._conditions.find(condition =>
-        labels.some(label =>
-          this._sameDx(label, condition.name) ||
-          (condition.aliases || []).some(alias => this._sameDx(label, alias))
-        )
-      );
+      const found = this._conditions.find(condition => this._norm(condition.name) === this._norm(primary));
       if (found) {
         found.aliases = found.aliases || [];
         labels.forEach(label => this._pushUnique(found.aliases, label, found.name));
         labels.forEach(label => this._parenAliases(label).forEach(alias => this._pushUnique(found.aliases, alias, found.name)));
         if (!found.specialty && meta.specialty) found.specialty = meta.specialty;
+        if (meta.canonical) found.canonical = true;
         this._rememberCatalog(found.name, labels.concat(primary), meta);
         return found;
       }
@@ -1954,7 +1963,8 @@
         keywords: this._norm(primary).split(' ').filter(word => word.length > 3),
         specialty: meta.specialty || 'Clinical Diagnosis',
         category: meta.category || 'Medicine',
-        source: 'case'
+        source: 'case',
+        canonical: Boolean(meta.canonical)
       };
       this._conditions.push(created);
       this._rememberCatalog(primary, labels, meta);
@@ -1979,35 +1989,47 @@
       return String(caseObj.subcategory || caseObj.category || '').split('/')[0].trim() || 'Clinical Diagnosis';
     },
 
+    registerCanonicals(names, meta) {
+      const details = meta || { specialty: 'Hepatology', category: 'Medicine', canonical: true };
+      (Array.isArray(names) ? names : []).forEach(name => {
+        const canonical = String(name || '').trim();
+        if (!canonical) return;
+        this.upsertFromCase(
+          canonical,
+          [this._core(canonical)].concat(this._parenAliases(canonical)),
+          Object.assign({ canonical: true }, details)
+        );
+      });
+      if (this._ready) this._persistCatalog();
+    },
+
     _registerCase(caseObj) {
       if (!caseObj) return;
-      const meta = { specialty: this._specialty(caseObj), category: caseObj.category || 'Medicine' };
+      const meta = { specialty: this._specialty(caseObj), category: caseObj.category || 'Medicine', canonical: true };
       const dx = caseObj.diagnosis || {};
-      const canonical = dx.canonical || dx.correctAnswer || dx.primary || dx.displayName || dx.name || '';
+      const canonical = caseObj.canonicalDiagnosis || caseObj.canonical_diagnosis || dx.canonical || dx.correctAnswer || dx.primary || dx.displayName || dx.name || '';
       const accepted = []
         .concat(Array.isArray(dx.acceptedAnswers) ? dx.acceptedAnswers : [])
         .concat(Array.isArray(dx.aliases) ? dx.aliases : [])
         .map(item => String(item || '').trim())
         .filter(Boolean);
       if (String(canonical).trim() || accepted.length) {
-        const selectable = this._pickSelectable(canonical, accepted);
-        this.upsertFromCase(selectable, [canonical, dx.correctAnswer, dx.primary, dx.displayName].concat(accepted), meta);
+        const canonicalName = String(canonical || accepted[0]).trim();
+        this.upsertFromCase(canonicalName, accepted.concat(this._core(canonicalName)), meta);
       } else {
         this._diagnosesFromClues(caseObj).forEach(phrase => {
-          const beforeParen = String(phrase).split('(')[0].trim();
-          const core = (beforeParen.split(/\s+/).length >= 2 ? beforeParen : (this._core(phrase) || phrase));
-          this.upsertFromCase(core, [phrase, this._core(phrase)].concat(this._parenAliases(phrase)), meta);
+          this.upsertFromCase(phrase, [this._core(phrase)].concat(this._parenAliases(phrase)), meta);
         });
       }
       (caseObj.differentialDiagnoses || []).forEach(item => {
         if (!item) return;
         if (typeof item === 'string') {
-          this.upsertFromCase(this._core(item) || item, [item], meta);
+          this.upsertFromCase(item, [this._core(item)], meta);
           return;
         }
         const name = item.diagnosis || item.name || item.label || '';
         if (!name) return;
-        this.upsertFromCase(this._core(name) || name, [name].concat(item.aliases || []), meta);
+        this.upsertFromCase(name, [this._core(name)].concat(item.aliases || []), meta);
       });
     },
 
@@ -2044,6 +2066,10 @@
       });
       if (typeof CaseRepository !== 'undefined' && CaseRepository.getAll) {
         this.syncFromCases(CaseRepository.getAll());
+      }
+      this.registerCanonicals(SHEET_CANONICAL_DIAGNOSES);
+      if (typeof GoogleSheetsCaseRepository !== 'undefined' && Array.isArray(GoogleSheetsCaseRepository._diagnosisNames)) {
+        this.registerCanonicals(GoogleSheetsCaseRepository._diagnosisNames);
       }
       return this._conditions;
     },
@@ -2163,6 +2189,7 @@
         }
 
         if (score > 0) {
+          if (item.canonical) score += 8;
           scored.push({ condition: item, score, matchedBy });
         }
       });
@@ -2603,6 +2630,24 @@
       }
     },
 
+    async _fetchDiagnosisNames() {
+      try {
+        const data = await this._request('getDiagnosisOptions');
+        const list = Array.isArray(data)
+          ? data
+          : (data && (data.diagnoses || data.options || data.canonicalDiagnoses || data.names)) || [];
+        return list.map(item => {
+          if (typeof item === 'string') return item.trim();
+          return String((item && (item.canonical || item.canonical_diagnosis || item.name)) || '').trim();
+        }).filter(Boolean);
+      } catch (err) {
+        if (!/INVALID_ACTION|not recognized/i.test(err.message || '')) {
+          console.info('[GoogleSheetsCaseRepository] Diagnosis catalog unavailable:', err.message);
+        }
+        return [];
+      }
+    },
+
     async _fetchCases() {
       let rows = this._normalizeList(await this._request('getCases'));
       this.adminError = '';
@@ -2633,8 +2678,11 @@
       this.lastError = '';
       this.lastSyncedAt = new Date().toISOString();
       StorageService.set('wisecases_sheet_cache_v1', cases);
+      this._diagnosisNames = await this._fetchDiagnosisNames();
       if (typeof ConditionRepository !== 'undefined' && ConditionRepository._ready) {
         ConditionRepository.syncFromCases(cases);
+        ConditionRepository.registerCanonicals(SHEET_CANONICAL_DIAGNOSES);
+        ConditionRepository.registerCanonicals(this._diagnosisNames);
       }
       return cases;
     },
@@ -3192,7 +3240,7 @@
       if (!normalizedUser || !this.activeCase) return false;
 
       const diag = this.activeCase.diagnosis || {};
-      const primary = this.normalizeString(diag.primary || diag.correctAnswer);
+      const primary = this.normalizeString(diag.canonical || diag.primary || diag.correctAnswer);
       if (primary && normalizedUser === primary) return true;
 
       const accepted = []
@@ -3512,7 +3560,7 @@
         return;
       }
 
-      const matches = ConditionRepository.search(trimmed, 8);
+      const matches = ConditionRepository.search(trimmed, 12);
       this.currentMatches = matches;
       this.renderSuggestions(matches, trimmed);
     },

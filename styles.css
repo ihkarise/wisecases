@@ -2213,7 +2213,7 @@ a:hover {
   border: 1px solid var(--color-light-gray);
   border-radius: var(--radius-lg);
   box-shadow: 0 12px 28px rgba(16, 24, 40, 0.12);
-  max-height: 320px;
+  max-height: 420px;
   overflow-y: auto;
   z-index: 1000;
   display: none;
@@ -2242,11 +2242,14 @@ a:hover {
   padding-left: 13px;
 }
 
-.autocomplete-item-title {
+.autocomplete-item-title,
+.autocomplete-item-name {
   font-size: 14px;
   font-weight: 600;
   color: var(--color-deep-navy);
   margin-bottom: 2px;
+  white-space: normal;
+  line-height: 1.35;
 }
 
 .autocomplete-item-meta {
