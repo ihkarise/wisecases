@@ -1837,6 +1837,187 @@
   // ==========================================================================
   const ConditionRepository = {
     _conditions: [],
+    _catalog: [],
+    _ready: false,
+    CATALOG_KEY: 'wisecases_condition_catalog_v1',
+
+    _norm(value) {
+      return String(value || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    },
+
+    _core(label) {
+      return String(label || '')
+        .replace(/\([^)]*\)/g, ' ')
+        .split(/\b(?:associated with|secondary to|due to)\b/i)[0]
+        .replace(/\s+/g, ' ')
+        .trim();
+    },
+
+    _parenAliases(label) {
+      const out = [];
+      const re = /\(([^)]+)\)/g;
+      let match;
+      const text = String(label || '');
+      while ((match = re.exec(text))) {
+        match[1].split(/[/|,]/).forEach(part => {
+          const token = part.trim();
+          if (token.length >= 2 && token.length <= 48) out.push(token);
+        });
+      }
+      return out;
+    },
+
+    _sameDx(a, b) {
+      const left = this._norm(this._core(a));
+      const right = this._norm(this._core(b));
+      return Boolean(left) && left === right;
+    },
+
+    _pushUnique(list, value, primary) {
+      const token = String(value || '').trim();
+      if (!token) return;
+      if (primary && this._norm(token) === this._norm(primary)) return;
+      if (list.some(item => this._norm(item) === this._norm(token))) return;
+      list.push(token);
+    },
+
+    _pickSelectable(canonical, accepted) {
+      const core = this._core(canonical);
+      const coreNorm = this._norm(core);
+      const exact = accepted.find(answer => this._norm(answer) === coreNorm);
+      if (exact) return exact;
+      const prefix = accepted
+        .filter(answer => {
+          const normalized = this._norm(answer);
+          return coreNorm.startsWith(normalized + ' ') || normalized.startsWith(coreNorm + ' ');
+        })
+        .sort((a, b) => this._norm(b).length - this._norm(a).length)[0];
+      if (prefix) return prefix;
+      const multi = accepted
+        .filter(answer => this._norm(answer).split(' ').length >= 2)
+        .sort((a, b) => b.length - a.length)[0];
+      return multi || accepted[0] || core || String(canonical || '').trim();
+    },
+
+    _rememberCatalog(name, labels, meta) {
+      const key = this._norm(this._core(name));
+      if (!key) return;
+      const entry = {
+        name,
+        aliases: [],
+        specialty: meta.specialty || '',
+        category: meta.category || ''
+      };
+      labels.forEach(label => this._pushUnique(entry.aliases, label, name));
+      labels.forEach(label => this._parenAliases(label).forEach(alias => this._pushUnique(entry.aliases, alias, name)));
+      const idx = this._catalog.findIndex(item => this._norm(this._core(item.name)) === key);
+      if (idx >= 0) {
+        const prev = this._catalog[idx];
+        (prev.aliases || []).forEach(alias => this._pushUnique(entry.aliases, alias, name));
+        if (prev.name && !this._sameDx(prev.name, name)) this._pushUnique(entry.aliases, prev.name, name);
+        if (!entry.specialty) entry.specialty = prev.specialty || '';
+        this._catalog[idx] = entry;
+      } else {
+        this._catalog.push(entry);
+      }
+    },
+
+    _persistCatalog() {
+      StorageService.set(this.CATALOG_KEY, this._catalog);
+    },
+
+    upsertFromCase(name, aliases, meta) {
+      const labels = [name].concat(aliases || []).map(item => String(item || '').trim()).filter(Boolean);
+      const primary = String(name || labels[0] || '').trim();
+      if (!primary || this._norm(primary).length < 3) return null;
+      const found = this._conditions.find(condition =>
+        labels.some(label =>
+          this._sameDx(label, condition.name) ||
+          (condition.aliases || []).some(alias => this._sameDx(label, alias))
+        )
+      );
+      if (found) {
+        found.aliases = found.aliases || [];
+        labels.forEach(label => this._pushUnique(found.aliases, label, found.name));
+        labels.forEach(label => this._parenAliases(label).forEach(alias => this._pushUnique(found.aliases, alias, found.name)));
+        if (!found.specialty && meta.specialty) found.specialty = meta.specialty;
+        this._rememberCatalog(found.name, labels.concat(primary), meta);
+        return found;
+      }
+      const aliasList = [];
+      labels.forEach(label => this._pushUnique(aliasList, label, primary));
+      labels.forEach(label => this._parenAliases(label).forEach(alias => this._pushUnique(aliasList, alias, primary)));
+      const created = {
+        id: 'CASE-' + this._norm(primary).replace(/\s+/g, '-').slice(0, 60),
+        name: primary,
+        aliases: aliasList,
+        keywords: this._norm(primary).split(' ').filter(word => word.length > 3),
+        specialty: meta.specialty || 'Clinical Diagnosis',
+        category: meta.category || 'Medicine',
+        source: 'case'
+      };
+      this._conditions.push(created);
+      this._rememberCatalog(primary, labels, meta);
+      return created;
+    },
+
+    _diagnosesFromClues(caseObj) {
+      const found = [];
+      (caseObj.stages || []).forEach(stage => {
+        const text = String(stage.clue || '');
+        const re = /(?:^|[.\n;])\s*(?:final\s+diagnosis|diagnosis)\s*:\s*([^.\n]+)/gi;
+        let match;
+        while ((match = re.exec(text))) {
+          const phrase = match[1].replace(/\s+/g, ' ').trim();
+          if (phrase.length >= 3 && phrase.length <= 180) found.push(phrase);
+        }
+      });
+      return found;
+    },
+
+    _specialty(caseObj) {
+      return String(caseObj.subcategory || caseObj.category || '').split('/')[0].trim() || 'Clinical Diagnosis';
+    },
+
+    _registerCase(caseObj) {
+      if (!caseObj) return;
+      const meta = { specialty: this._specialty(caseObj), category: caseObj.category || 'Medicine' };
+      const dx = caseObj.diagnosis || {};
+      const canonical = dx.canonical || dx.correctAnswer || dx.primary || dx.displayName || dx.name || '';
+      const accepted = []
+        .concat(Array.isArray(dx.acceptedAnswers) ? dx.acceptedAnswers : [])
+        .concat(Array.isArray(dx.aliases) ? dx.aliases : [])
+        .map(item => String(item || '').trim())
+        .filter(Boolean);
+      if (String(canonical).trim() || accepted.length) {
+        const selectable = this._pickSelectable(canonical, accepted);
+        this.upsertFromCase(selectable, [canonical, dx.correctAnswer, dx.primary, dx.displayName].concat(accepted), meta);
+      } else {
+        this._diagnosesFromClues(caseObj).forEach(phrase => {
+          const beforeParen = String(phrase).split('(')[0].trim();
+          const core = (beforeParen.split(/\s+/).length >= 2 ? beforeParen : (this._core(phrase) || phrase));
+          this.upsertFromCase(core, [phrase, this._core(phrase)].concat(this._parenAliases(phrase)), meta);
+        });
+      }
+      (caseObj.differentialDiagnoses || []).forEach(item => {
+        if (!item) return;
+        if (typeof item === 'string') {
+          this.upsertFromCase(this._core(item) || item, [item], meta);
+          return;
+        }
+        const name = item.diagnosis || item.name || item.label || '';
+        if (!name) return;
+        this.upsertFromCase(this._core(name) || name, [name].concat(item.aliases || []), meta);
+      });
+    },
+
+    syncFromCases(cases) {
+      if (!this._ready) return 0;
+      const before = this._conditions.length;
+      (Array.isArray(cases) ? cases : []).forEach(item => this._registerCase(item));
+      this._persistCatalog();
+      return this._conditions.length - before;
+    },
 
     async init() {
       this._conditions = JSON.parse(JSON.stringify(DEFAULT_SEED_CONDITIONS));
@@ -1851,6 +2032,18 @@
         } catch (e) {
           console.info('[ConditionRepository] Using embedded seed conditions.');
         }
+      }
+      const saved = StorageService.get(this.CATALOG_KEY, []);
+      this._catalog = Array.isArray(saved) ? saved : [];
+      this._ready = true;
+      this._catalog.slice().forEach(entry => {
+        this.upsertFromCase(entry.name, entry.aliases || [], {
+          specialty: entry.specialty,
+          category: entry.category
+        });
+      });
+      if (typeof CaseRepository !== 'undefined' && CaseRepository.getAll) {
+        this.syncFromCases(CaseRepository.getAll());
       }
       return this._conditions;
     },
@@ -2440,6 +2633,9 @@
       this.lastError = '';
       this.lastSyncedAt = new Date().toISOString();
       StorageService.set('wisecases_sheet_cache_v1', cases);
+      if (typeof ConditionRepository !== 'undefined' && ConditionRepository._ready) {
+        ConditionRepository.syncFromCases(cases);
+      }
       return cases;
     },
 
@@ -2593,6 +2789,9 @@
     },
 
     async commitImport(validCases) {
+      if (typeof ConditionRepository !== 'undefined') {
+        ConditionRepository.syncFromCases(validCases);
+      }
       const count = await this.bulkImport(validCases);
       try {
         await this.reload();
@@ -2722,7 +2921,14 @@
     },
 
     saveCase(caseObj) {
-      return this.activeRepo.saveCase(caseObj);
+      const remember = (saved) => {
+        if (typeof ConditionRepository !== 'undefined') {
+          ConditionRepository.syncFromCases([saved || caseObj]);
+        }
+        return saved;
+      };
+      const result = this.activeRepo.saveCase(caseObj);
+      return result && typeof result.then === 'function' ? result.then(remember) : remember(result);
     },
 
     save(caseObj) {
@@ -2758,6 +2964,9 @@
     },
 
     commitImport(validCases) {
+      if (typeof ConditionRepository !== 'undefined') {
+        ConditionRepository.syncFromCases(validCases);
+      }
       return this.activeRepo.commitImport(validCases);
     },
 
@@ -3440,6 +3649,15 @@
     return raw;
   }
 
+  function learnerClueText(clue, hideLabeledDiagnosis) {
+    const text = String(clue || '');
+    if (!hideLabeledDiagnosis) return text;
+    return text
+      .replace(/(^|[.\n;])(\s*)(?:final\s+diagnosis|diagnosis)\s*:\s*[^.\n]+[.]?/gi, (match, boundary) => boundary || '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
   const AppUI = {
     activeView: 'home',
     currentCategoryFilter: 'All',
@@ -4056,7 +4274,7 @@
           </div>
 
           <h3 class="clue-title">${learnerStageTitle(stg, idx)}</h3>
-          <p class="clue-text">${stg.clue}</p>
+          <p class="clue-text">${learnerClueText(stg.clue, !state.isFinished)}</p>
         `;
 
         container.appendChild(card);
@@ -6525,9 +6743,16 @@
         }
       });
 
+      const beforeOptions = ConditionRepository.getAll().length;
       const importedCount = await CaseRepository.commitImport(toSave);
+      const added = Math.max(0, ConditionRepository.getAll().length - beforeOptions);
       const where = CaseRepository.isGoogle() ? 'Google Sheet' : 'curriculum';
-      AppUI.showToast(`Committed ${importedCount} cases to the ${where}.`, 'success');
+      AppUI.showToast(
+        added
+          ? `Committed ${importedCount} cases to the ${where}. ${added} diagnosis option${added === 1 ? '' : 's'} added to Formulate Your Diagnosis.`
+          : `Committed ${importedCount} cases to the ${where}. Their diagnoses are in Formulate Your Diagnosis.`,
+        'success'
+      );
       AppUI.renderLibraryCases();
       AppUI.renderAdminCases();
       window.location.hash = '#library';
